@@ -21,17 +21,17 @@ struct texture *texture_create(const char *file_name)
 {
 	assert(file_name && "texture_create: file_name is NULL");
 
-	struct texture *texture = (struct texture *)malloc(sizeof(struct texture));
+	struct texture *texture = new struct texture;
 
 	int n;
 	unsigned char *data = stbi_load(file_name, &texture->size.x, &texture->size.y, &n, 3);
 	if (!data)
 	{
-		free(texture);
+		delete texture;
 		return NULL;
 	}
 
-	texture->buf = (uint32_t *)malloc(texture->size.x * texture->size.y * sizeof(uint32_t));
+	texture->buf = new uint32_t[(size_t)(texture->size.x * texture->size.y)];
 	for (int i = 0, j = 0; i < (texture->size.x * texture->size.y); ++i, j += 3)
 		texture->buf[i] = (uint32_t)((data[j] << 16) | (data[j + 1] << 8) | data[j + 2]);
 
@@ -45,8 +45,8 @@ void texture_destroy(struct texture **texture)
 	assert(texture && "texture_destroy: texture is NULL");
 	assert(*texture && "texture_destroy: *texture is NULL");
 
-	free((*texture)->buf);
-	free(*texture);
+	delete[] (*texture)->buf;
+	delete *texture;
 	*texture = NULL;
 }
 

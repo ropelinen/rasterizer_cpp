@@ -358,13 +358,13 @@ DWORD WINAPI thread_func(LPVOID lpParam)
 
 struct thread *thread_create(const int core_id)
 {
-	struct thread *thread = (struct thread *)malloc(sizeof(struct thread));
+	struct thread *thread = new struct thread;
 
 	thread->sleep_semaphore = CreateSemaphore(NULL, 0, 100, NULL);
 	if (!thread->sleep_semaphore)
 	{
 		assert(false && "thread_create: failed to create has_tasks semaphore");
-		free(thread);
+		delete thread;
 		return NULL;
 	}
 
@@ -376,7 +376,7 @@ struct thread *thread_create(const int core_id)
 	if (!thread->handle)
 	{
 		CloseHandle(thread->sleep_semaphore);
-		free(thread);
+		delete thread;
 		return NULL;
 	}
 
@@ -393,7 +393,7 @@ struct thread *thread_create(const int core_id)
 		WaitForSingleObject(thread->handle, INFINITE);
 		CloseHandle(thread->sleep_semaphore);
 		CloseHandle(thread->handle);
-		free(thread);
+		delete thread;
 
 		return NULL;
 	}
@@ -427,7 +427,7 @@ void thread_destroy(struct thread **thread)
 	DeleteCriticalSection(&(*thread)->doing_task_critical_section);
 	CloseHandle((*thread)->sleep_semaphore);
 
-	free(*thread);
+	delete *thread;
 	*thread = NULL;
 }
 

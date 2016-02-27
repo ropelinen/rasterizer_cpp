@@ -25,7 +25,7 @@ struct font *font_create(const char *file_name)
 {
 	assert(file_name && "font_create: file_name is NULL");
 
-	struct font *font = (struct font *)malloc(sizeof(struct font));
+	struct font *font = new struct font;
 	FILE *font_file = fopen(file_name, "rb");
 	if (!font_file)
 		return NULL;
@@ -51,7 +51,7 @@ void font_destroy(struct font **font)
 	assert(*font && "font_destroy: *font is NULL");
 
 	free((*font)->buffer);
-	free(*font);
+	delete *font;
 	*font = NULL;
 }
 

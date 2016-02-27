@@ -118,10 +118,10 @@ void main(struct api_info *api_info, struct renderer_info *renderer_info)
 		if (rasterizer_uses_tiles())
 		{
 			rasterizer_get_padded_size(&rendertarget_size, &padded_size);
-			render_target = (uint32_t *)malloc(padded_size.x * padded_size.y * sizeof(uint32_t));
+			render_target = new uint32_t[(size_t)(padded_size.x * padded_size.y)];
 		}
 		else
-			render_target = (uint32_t *)malloc(rendertarget_size.x * rendertarget_size.y * sizeof(uint32_t));
+			render_target = new uint32_t[(size_t)(rendertarget_size.x * rendertarget_size.y)];
 	}
 	else
 		render_target = (uint32_t *)get_backbuffer(renderer_info);
@@ -132,9 +132,9 @@ void main(struct api_info *api_info, struct renderer_info *renderer_info)
 	/* Get correctly sized depth buffer */
 	uint32_t *depth_buf = NULL;
 	if (rasterizer_uses_simd() && rasterizer_uses_tiles())
-		depth_buf = (uint32_t *)malloc(padded_size.x * padded_size.y * sizeof(uint32_t));
+		depth_buf = new uint32_t[(size_t)(padded_size.x * padded_size.y)];
 	else
-		depth_buf = (uint32_t *)malloc(rendertarget_size.x * rendertarget_size.y * sizeof(uint32_t));
+		depth_buf = new uint32_t[(size_t)(rendertarget_size.x * rendertarget_size.y)];
 
 	struct matrix_4x4 perspective_mat = mat44_get_perspective_lh_fov(DEG_TO_RAD(59.0f), (float)rendertarget_size.x / (float)rendertarget_size.y, 1.0f, 1000.0f);
 
@@ -144,8 +144,8 @@ void main(struct api_info *api_info, struct renderer_info *renderer_info)
 	const uint32_t tile_size = rasterizer_get_tile_size();
 #ifdef USE_THREADING
 	const unsigned int core_count = get_logical_core_count();
-	struct thread **threads = (struct thread **)malloc(sizeof(struct thread *) * core_count);
-	struct thread_data *thread_data = (struct thread_data *)malloc(sizeof(struct thread_data) * core_count);
+	struct thread **threads = new struct thread *[core_count];
+	struct thread_data *thread_data = new struct thread_data[core_count];
 
 	unsigned int tile_count = (padded_size.x / tile_size) * (padded_size.y / tile_size);
 	/* Not a good way to do this.
@@ -349,14 +349,14 @@ void main(struct api_info *api_info, struct renderer_info *renderer_info)
 		thread_destroy(&threads[i]);
 		thread_data_deinit(&thread_data[i]);
 	}
-	free(threads);
-	free(thread_data);
+	delete[] threads;
+	delete[] thread_data;
 #endif
 
 	if (rasterizer_uses_simd())
-		free(render_target);
+		delete[] render_target;
 	
-	free(depth_buf);
+	delete[] depth_buf;
 
 	if (stats)
 		stats_destroy(&stats);
@@ -616,36 +616,43 @@ void thread_data_init(struct thread_data *data, const uint32_t buffer_count, con
 	data->buffer_count = buffer_count;
 	if (rasterizer_uses_tiles())
 	{
-		data->raster_area_mins = (struct vec2_int *)malloc(sizeof(struct vec2_int) * raster_area_count);
-		data->raster_area_maxs = (struct vec2_int *)malloc(sizeof(struct vec2_int) * raster_area_count);
+		data->raster_area_mins = new struct vec2_int[raster_area_count];
+		data->raster_area_maxs = new struct vec2_int[raster_area_count];
 		data->raster_area_count = raster_area_count;
 	}
 	else
 	{
-		data->raster_area_mins = (struct vec2_int *)malloc(sizeof(struct vec2_int));
-		data->raster_area_maxs = (struct vec2_int *)malloc(sizeof(struct vec2_int));
+		data->raster_area_mins = new struct vec2_int;
+		data->raster_area_maxs = new struct vec2_int;
 		data->raster_area_count = 1;
 	}
-	data->vert_bufs = (struct vec4_float **)malloc(sizeof(struct vec4_float *) * buffer_count);
-	data->uv_bufs = (struct vec2_float **)malloc(sizeof(struct vec2_float *) * buffer_count);
-	data->ind_bufs = (unsigned int **)malloc(sizeof(unsigned int *) * buffer_count);
-	data->ind_counts = (unsigned int *)malloc(sizeof(unsigned int) * buffer_count);
-	data->textures = (uint32_t **)malloc(sizeof(uint32_t *) * buffer_count);
-	data->texture_sizes = (struct vec2_int **)malloc(sizeof(struct vec2_int *) * buffer_count);
+	data->vert_bufs = new struct vec4_float *[buffer_count];
+	data->uv_bufs = new struct vec2_float *[buffer_count];
+	data->ind_bufs = new unsigned int *[buffer_count];
+	data->ind_counts = new unsigned int[buffer_count];
+	data->textures = new uint32_t *[buffer_count];
+	data->texture_sizes = new struct vec2_int *[buffer_count];
 }
 
 void thread_data_deinit(struct thread_data *data)
 {
 	assert(data && "thread_data_deinit: data is NULL");
-
-	free(data->raster_area_mins);
-	free(data->raster_area_maxs);
-	free(data->vert_bufs);
-	free(data->uv_bufs);
-	free(data->ind_bufs);
-	free(data->ind_counts);
-	free(data->textures);
-	free(data->texture_sizes);
+	if (rasterizer_uses_tiles())
+	{
+		delete[] data->raster_area_mins;
+		delete[] data->raster_area_maxs;
+	}
+	else
+	{
+		delete data->raster_area_mins;
+		delete data->raster_area_maxs;
+	}
+	delete[] data->vert_bufs;
+	delete[] data->uv_bufs;
+	delete[] data->ind_bufs;
+	delete[] data->ind_counts;
+	delete[] data->textures;
+	delete[] data->texture_sizes;
 }
 
 void thread_data_calculate_areas(struct thread_data *data, const unsigned int core_count, const struct vec2_int *backbuffer_size)

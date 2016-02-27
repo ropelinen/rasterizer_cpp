@@ -28,13 +28,13 @@ struct stats
 
 struct stats *stats_create(const unsigned char stat_count, const unsigned int frames_in_buffer, const bool profiling_run)
 {
-	struct stats *stats = (struct stats *)malloc(sizeof(struct stats));
+	struct stats *stats = new struct stats;
 
-	stats->stats_arr = (uint32_t *)malloc(stat_count * frames_in_buffer * sizeof(uint32_t));
+	stats->stats_arr = new uint32_t[stat_count * frames_in_buffer];
 	memset(stats->stats_arr, 0, stat_count * frames_in_buffer * sizeof(uint32_t));
-	stats->stats_sorted = (uint32_t *)malloc(stat_count * frames_in_buffer * sizeof(uint32_t));
+	stats->stats_sorted = new uint32_t[stat_count * frames_in_buffer];
 	memset(stats->stats_sorted, 0, stat_count * frames_in_buffer * sizeof(uint32_t));
-	stats->sums = (uint64_t *)malloc(stat_count * sizeof(uint64_t));
+	stats->sums = new uint64_t[stat_count];
 	memset(stats->sums, 0, stat_count * sizeof(uint64_t));
 
 	stats->current_index = 0;
@@ -50,10 +50,10 @@ void stats_destroy(struct stats **stats)
 	assert(stats && "stats_destroy: stats is NULL");
 	assert(*stats && "stats_destroy: *stats is NULL");
 
-	free((*stats)->sums);
-	free((*stats)->stats_sorted);
-	free((*stats)->stats_arr);
-	free(*stats);
+	delete[] (*stats)->sums;
+	delete[] (*stats)->stats_sorted;
+	delete[] (*stats)->stats_arr;
+	delete *stats;
 }
 
 bool stats_profiling_run_complete(const struct stats *stats)
