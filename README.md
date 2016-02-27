@@ -1,4 +1,5 @@
 # A simple cpu rasterizer
+- Note that this is a C++ version of a C project https://github.com/ropelinen/rasterizer
 - Using SIMD and x64 is recommended
 - Only use x86 with no SIMD optimizations as a last resort
 - Functions do not check for NULL pointers, it is the responsibility of the caller (there are asserts for that though)
