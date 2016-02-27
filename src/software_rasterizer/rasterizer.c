@@ -16,7 +16,7 @@
  * unless tris are properly binned to the raster areas. */
 //#define USE_TILES 1
 #endif
-#define TILE_SIZE 32
+#define TILE_SIZE 64
 
 #ifdef USE_SIMD
 #include <emmintrin.h>
@@ -77,7 +77,6 @@ bool is_top_or_left(const struct vec2_int *p1, const struct vec2_int *p2)
 #define OC_BOTTOM 4 // 0100
 #define OC_TOP 8    // 1000
 
-/* very heavy with lots of polys */
 uint32_t compute_out_code(struct vec2_int *p, const int32_t minx, const int32_t miny, const int32_t maxx, const int32_t maxy)
 {
 	assert(p && "compute_out_code: p is NULL");
@@ -95,36 +94,6 @@ uint32_t compute_out_code(struct vec2_int *p, const int32_t minx, const int32_t 
 
 	return code;
 }
-
-//#define SIMD_OUTCODE 1
-#ifdef SIMD_OUTCODE
-void compute_out_code_simd(struct vec2_int *p, const int32_t minx, const int32_t miny, const int32_t maxx, const int32_t maxy, uint32_t *out_codes)
-{
-	assert(p && "compute_out_code_simd: p is NULL");
-	assert(out_codes && "compute_out_code_simd: out_codes is NULL");
-
-	__m128i x = _mm_set_epi32(0, p[2].x, p[1].x, p[0].x);
-	__m128i y = _mm_set_epi32(0, p[2].y, p[1].y, p[0].y);
-	__m128i codes = _mm_set_epi32(OC_INSIDE, OC_INSIDE, OC_INSIDE, OC_INSIDE);
-	__m128i mul_mask = _mm_set_epi32(1, 1, 1, 1);
-	
-	__m128i mask = _mm_cmplt_epi32(x, _mm_set_epi32(minx, minx, minx, minx));
-	codes = mul_epi32(_mm_and_si128(mul_mask, mask), _mm_set_epi32(OC_LEFT, OC_LEFT, OC_LEFT, OC_LEFT));
-	
-	mask = _mm_cmpgt_epi32(x, _mm_set_epi32(maxx, maxx, maxx, maxx));
-	codes = _mm_or_si128(mul_epi32(_mm_and_si128(mul_mask, mask), _mm_set_epi32(OC_RIGHT, OC_RIGHT, OC_RIGHT, OC_RIGHT)), codes);
-	
-	mask = _mm_cmplt_epi32(y, _mm_set_epi32(miny, miny, miny, miny));
-	codes = _mm_or_si128(mul_epi32(_mm_and_si128(mul_mask, mask), _mm_set_epi32(OC_BOTTOM, OC_BOTTOM, OC_BOTTOM, OC_BOTTOM)), codes);
-	
-	mask = _mm_cmpgt_epi32(y, _mm_set_epi32(maxy, maxy, maxy, maxy));
-	codes = _mm_or_si128(mul_epi32(_mm_and_si128(mul_mask, mask), _mm_set_epi32(OC_TOP, OC_TOP, OC_TOP, OC_TOP)), codes);
-
-	for (int i = 0; i < 3; ++i)
-		out_codes[i] = ((uint32_t*)&codes)[i];
-}
-#endif
-
 
 /* Get guard-band intersection point */
 struct vec2_int get_gb_intersection_point(const unsigned int oc, const struct vec2_int *p1, const struct vec2_int *p2)
@@ -227,17 +196,9 @@ bool clip(struct vec2_int *work_poly, float *work_z, float *work_w, struct vec2_
 	assert(target_min->x < target_max->x && target_min->y < target_max->y && "clip: target_min must be smaller than target_max");
 
 	/* Test view port x, y clipping */
-#ifdef SIMD_OUTCODE
-	uint32_t codes[3];
-	compute_out_code_simd(&work_poly[0], target_min->x, target_min->y, target_max->x, target_max->y, &codes[0]);
-	uint32_t oc0 = codes[0];
-	uint32_t oc1 = codes[1];
-	uint32_t oc2 = codes[2];
-#else
 	uint32_t oc0 = compute_out_code(&work_poly[0], target_min->x, target_min->y, target_max->x, target_max->y);
 	uint32_t oc1 = compute_out_code(&work_poly[1], target_min->x, target_min->y, target_max->x, target_max->y);
 	uint32_t oc2 = compute_out_code(&work_poly[2], target_min->x, target_min->y, target_max->x, target_max->y);
-#endif
 	if ((oc0 | oc1 | oc2) == 0)
 	{
 		/* Whole poly inside the view, trivially accept */
@@ -256,16 +217,10 @@ bool clip(struct vec2_int *work_poly, float *work_z, float *work_w, struct vec2_
 		const int32_t miny = TO_FIXED(GB_MIN, sub_multip);
 		const int32_t maxx = TO_FIXED(GB_MAX, sub_multip);
 		const int32_t maxy = TO_FIXED(GB_MAX, sub_multip);
-#ifdef SIMD_OUTCODE
-		compute_out_code_simd(&work_poly[0], target_min->x, target_min->y, target_max->x, target_max->y, &codes[0]);
-		oc0 = codes[0];
-		oc1 = codes[1];
-		oc2 = codes[2];
-#else
+
 		oc0 = compute_out_code(&work_poly[0], minx, miny, maxx, maxy);
 		oc1 = compute_out_code(&work_poly[1], minx, miny, maxx, maxy);
 		oc2 = compute_out_code(&work_poly[2], minx, miny, maxx, maxy);
-#endif
 
 		if ((oc0 | oc1 | oc2) == 0)
 		{
