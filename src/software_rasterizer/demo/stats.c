@@ -10,7 +10,7 @@ struct stats
 	 * uint16_would be enough for 65 milliseconds. 
 	 * Could store the time in 1/10 milliseconds or something like,
 	 * it should be ok for any normal frame time but not worth the trouble right now. */
-	uint32_t *stats;
+	uint32_t *stats_arr;
 	/* When ever a stat is updated the value is also added to this sorted array and the old value is removed.
 	 * This allows efficient checking of percentile values. However this doubles memory consumption. */
 	uint32_t *stats_sorted;
@@ -28,13 +28,13 @@ struct stats
 
 struct stats *stats_create(const unsigned char stat_count, const unsigned int frames_in_buffer, const bool profiling_run)
 {
-	struct stats *stats = malloc(sizeof(struct stats));
+	struct stats *stats = (struct stats *)malloc(sizeof(struct stats));
 
-	stats->stats = malloc(stat_count * frames_in_buffer * sizeof(uint32_t));
-	memset(stats->stats, 0, stat_count * frames_in_buffer * sizeof(uint32_t));
-	stats->stats_sorted = malloc(stat_count * frames_in_buffer * sizeof(uint32_t));
+	stats->stats_arr = (uint32_t *)malloc(stat_count * frames_in_buffer * sizeof(uint32_t));
+	memset(stats->stats_arr, 0, stat_count * frames_in_buffer * sizeof(uint32_t));
+	stats->stats_sorted = (uint32_t *)malloc(stat_count * frames_in_buffer * sizeof(uint32_t));
 	memset(stats->stats_sorted, 0, stat_count * frames_in_buffer * sizeof(uint32_t));
-	stats->sums = malloc(stat_count * sizeof(uint64_t));
+	stats->sums = (uint64_t *)malloc(stat_count * sizeof(uint64_t));
 	memset(stats->sums, 0, stat_count * sizeof(uint64_t));
 
 	stats->current_index = 0;
@@ -52,7 +52,7 @@ void stats_destroy(struct stats **stats)
 
 	free((*stats)->sums);
 	free((*stats)->stats_sorted);
-	free((*stats)->stats);
+	free((*stats)->stats_arr);
 	free(*stats);
 }
 
@@ -147,12 +147,12 @@ void stats_update_stat(struct stats *stats, const unsigned char stat_id, const u
 	if (stats->profiling_run && stats->current_index >= stats->frames_in_buffer)
 		return;
 
-	uint32_t prev_value = stats->stats[(stat_id * stats->frames_in_buffer) + stats->current_index];
+	uint32_t prev_value = stats->stats_arr[(stat_id * stats->frames_in_buffer) + stats->current_index];
 	/* No change here, don't do anything. */
 	if (time == prev_value)
 		return;
 	
-	stats->stats[(stat_id * stats->frames_in_buffer) + stats->current_index] = time;
+	stats->stats_arr[(stat_id * stats->frames_in_buffer) + stats->current_index] = time;
 
 	stats->sums[stat_id] -= prev_value;
 	stats->sums[stat_id] += time;
@@ -183,7 +183,7 @@ uint32_t stats_get_stat_prev_frame(struct stats *stats, const unsigned char stat
 {
 	assert(stats && "stats_get_stat_prev_frame: stats in NULL");
 
-	return stats->stats[(stat_id * stats->frames_in_buffer) + (stats->current_index ? stats->current_index : stats->frames_in_buffer) - 1];
+	return stats->stats_arr[(stat_id * stats->frames_in_buffer) + (stats->current_index ? stats->current_index : stats->frames_in_buffer) - 1];
 }
 
 uint32_t stats_get_stat_percentile(struct stats *stats, const unsigned char stat_id, const float percentile)

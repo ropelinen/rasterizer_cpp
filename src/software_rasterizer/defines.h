@@ -7,6 +7,7 @@
 #if defined(_MSC_VER)
 	#pragma warning(disable : 4115) /* named type definition in parentheses */
 	#pragma warning(disable : 4514) /* unreferenced inline function has been removed */
+	#pragma warning(disable : 4577) /* 'noexcept' used with no exception handling mode specified; termination on exception is not guaranteed. */
 	#pragma warning(disable : 4668) /* is not defined as a preprocessor macro, replacing with '0' for '#if/#elif' */
 	#pragma warning(disable : 4710) /* The given function was selected for inline expansion, but the compiler did not perform the inlining. */
 	#pragma warning(disable : 4711) /* function selected for automatic inline expansion */
@@ -21,7 +22,6 @@
 #endif
 
 /* Generic includes */
-#include <stdbool.h>
 #include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>

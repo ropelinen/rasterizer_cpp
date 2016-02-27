@@ -86,8 +86,8 @@ void main(struct api_info *api_info, struct renderer_info *renderer_info)
 	struct vec2_float uv_large[VERTS_IN_BOX * LARGE_VERT_BUF_BOXES];
 	unsigned int ind_buf_large[36 * LARGE_VERT_BUF_BOXES];
 	const unsigned int ind_buf_large_size = sizeof(ind_buf_large) / sizeof(ind_buf_large[0]);
-	struct vec3_float box_offsets[LARGE_VERT_BUF_BOXES] = { { .x = -6.0f, .y = 6.0f, .z = 6.0f }, { .x = 2.0f, .y = 4.0f, .z = 6.0f }, { .x = -2.0f, .y = -2.0f, .z = 2.0f }, { .x = 0.0f, .y = 0.0f, .z = 0.0f },
-	                                                        { .x = -6.0f, .y = 2.0f, .z = -2.0f }, { .x = -4.0f, .y = -4.0f, .z = -8.0f }, { .x = 4.0f, .y = 6.0f, .z = -6.0f }, { .x = 2.0f, .y = 10.0f, .z = -8.0f } };
+	struct vec3_float box_offsets[LARGE_VERT_BUF_BOXES] = { { -6.0f, 6.0f, 6.0f }, { 2.0f, 4.0f, 6.0f }, { -2.0f, -2.0f, 2.0f }, { 0.0f, 0.0f, 0.0f },
+	                                                        { -6.0f, 2.0f, -2.0f }, { -4.0f, -4.0f, -8.0f }, { 4.0f, 6.0f, -6.0f }, { 2.0f, 10.0f, -8.0f } };
 	generate_large_test_buffers(&vert_buf[0], &uv[0], &ind_buf[0], &vert_buf_large[0], &uv_large[0], &ind_buf_large[0], &box_offsets[0], LARGE_VERT_BUF_BOXES);
 
 	struct vec4_float final_vert_buf[VERTS_IN_BOX];
@@ -97,8 +97,8 @@ void main(struct api_info *api_info, struct renderer_info *renderer_info)
 	struct vec4_float final_vert_buf_large3[VERTS_IN_BOX * LARGE_VERT_BUF_BOXES];
 	
 	/* Transfrom related */
-	struct vec3_float translation = { .x = -5.5f, .y = -8.0f, .z = 10.0f };
-	struct vec3_float camera_trans = { .x = 2.0f, .y = -4.0f, .z = 0.0f };
+	struct vec3_float translation = { -5.5f, -8.0f, 10.0f };
+	struct vec3_float camera_trans = { 2.0f, -4.0f, 0.0f };
 	struct matrix_3x4 trans_mat = mat34_get_translation(&translation);
 	translation.x += 2.0f; translation.z += 3.0f;
 	struct matrix_3x4 trans_mat2 = mat34_get_translation(&translation);
@@ -112,19 +112,19 @@ void main(struct api_info *api_info, struct renderer_info *renderer_info)
 	/* Get correctly sized render target */
 	struct vec2_int rendertarget_size = get_backbuffer_size(renderer_info);
 	uint32_t *render_target = NULL;
-	struct vec2_int padded_size = { .x = 0, .y = 0 };
+	struct vec2_int padded_size = { 0, 0 };
 	if (rasterizer_uses_simd())
 	{
 		if (rasterizer_uses_tiles())
 		{
 			rasterizer_get_padded_size(&rendertarget_size, &padded_size);
-			render_target = malloc(padded_size.x * padded_size.y * sizeof(uint32_t));
+			render_target = (uint32_t *)malloc(padded_size.x * padded_size.y * sizeof(uint32_t));
 		}
 		else
-			render_target = malloc(rendertarget_size.x * rendertarget_size.y * sizeof(uint32_t));
+			render_target = (uint32_t *)malloc(rendertarget_size.x * rendertarget_size.y * sizeof(uint32_t));
 	}
 	else
-		render_target = get_backbuffer(renderer_info);
+		render_target = (uint32_t *)get_backbuffer(renderer_info);
 
 	if (!render_target)
 		error_popup("Couldn't get back buffer", true);
@@ -132,20 +132,20 @@ void main(struct api_info *api_info, struct renderer_info *renderer_info)
 	/* Get correctly sized depth buffer */
 	uint32_t *depth_buf = NULL;
 	if (rasterizer_uses_simd() && rasterizer_uses_tiles())
-		depth_buf = malloc(padded_size.x * padded_size.y * sizeof(uint32_t));
+		depth_buf = (uint32_t *)malloc(padded_size.x * padded_size.y * sizeof(uint32_t));
 	else
-		depth_buf = malloc(rendertarget_size.x * rendertarget_size.y * sizeof(uint32_t));
+		depth_buf = (uint32_t *)malloc(rendertarget_size.x * rendertarget_size.y * sizeof(uint32_t));
 
 	struct matrix_4x4 perspective_mat = mat44_get_perspective_lh_fov(DEG_TO_RAD(59.0f), (float)rendertarget_size.x / (float)rendertarget_size.y, 1.0f, 1000.0f);
 
 	uint32_t frame_time_mus = 0;
 	uint64_t frame_start = get_time();
 
-	const int32_t tile_size = rasterizer_get_tile_size();
+	const uint32_t tile_size = rasterizer_get_tile_size();
 #ifdef USE_THREADING
 	const unsigned int core_count = get_logical_core_count();
-	struct thread **threads = malloc(sizeof(struct thread *) * core_count);
-	struct thread_data *thread_data = malloc(sizeof(struct thread_data) * core_count);
+	struct thread **threads = (struct thread **)malloc(sizeof(struct thread *) * core_count);
+	struct thread_data *thread_data = (struct thread_data *)malloc(sizeof(struct thread_data) * core_count);
 
 	unsigned int tile_count = (padded_size.x / tile_size) * (padded_size.y / tile_size);
 	/* Not a good way to do this.
@@ -155,7 +155,7 @@ void main(struct api_info *api_info, struct renderer_info *renderer_info)
 	 * Would be relatively easy if I had the verts in some data structure suitable for occlusion culling. */
 	for (unsigned int i = 0; i < core_count; ++i)
 	{
-		threads[i] = thread_create(i);
+		threads[i] = thread_create((int)i);
 		thread_data_init(&thread_data[i], 5, tile_count / core_count + 1);
 		thread_data[i].render_target = render_target;
 		thread_data[i].depth_buffer = depth_buf;
@@ -258,7 +258,7 @@ void main(struct api_info *api_info, struct renderer_info *renderer_info)
 		for (unsigned int i = 0; i < core_count; ++i)
 			thread_wait_for_task(threads[i]);
 #else
-		const struct vec2_int area_min = { .x = 0, .y = 0 };
+		const struct vec2_int area_min = { 0, 0 };
 		struct vec2_int area_max;
 		area_max.x = rendertarget_size.x - 1;
 		area_max.y = rendertarget_size.y - 1;
@@ -273,27 +273,27 @@ void main(struct api_info *api_info, struct renderer_info *renderer_info)
 		if (rasterizer_uses_simd())
 		{
 			/* Deswizzle the backbuffer here */
-			uint32_t *bb = get_backbuffer(renderer_info);
+			uint32_t *bb = (uint32_t *)get_backbuffer(renderer_info);
 			if (rasterizer_uses_tiles())
 			{
-				for (int tile_y = 0; tile_y < padded_size.y; tile_y += tile_size)
+				for (unsigned int tile_y = 0; tile_y < (unsigned)padded_size.y; tile_y += tile_size)
 				{
-					for (int tile_x = 0; tile_x < padded_size.x; tile_x += tile_size)
+					for (unsigned int tile_x = 0; tile_x < (unsigned)padded_size.x; tile_x += tile_size)
 					{
-						const int tile_index = (padded_size.x / tile_size) * (tile_y / tile_size) + (tile_x / tile_size);
-						const int tile_start = tile_size * tile_size * tile_index;
+						const unsigned int tile_index = (padded_size.x / tile_size) * (tile_y / tile_size) + (tile_x / tile_size);
+						const unsigned int tile_start = tile_size * tile_size * tile_index;
 
-						for (int y = 0; y < tile_size && tile_y + y < rendertarget_size.y; y += 2)
+						for (unsigned int y = 0; y < tile_size && tile_y + y < (unsigned)rendertarget_size.y; y += 2)
 						{
-							int source_row = tile_start + tile_size * y;
-							int target_row = (tile_y + y) * rendertarget_size.x;
-							for (int x = 0; x < tile_size && tile_x + x < rendertarget_size.x; x += 2)
+							unsigned int source_row = tile_start + tile_size * y;
+							unsigned int target_row = (tile_y + y) * rendertarget_size.x;
+							for (unsigned int x = 0; x < tile_size && tile_x + x < (unsigned)rendertarget_size.x; x += 2)
 							{
-								int start = target_row + tile_x + x;
-								int start_swizz = source_row + x * 2;
+								unsigned int start = target_row + tile_x + x;
+								unsigned int start_swizz = source_row + x * 2;
 
-								assert(start + rendertarget_size.x + 1 < rendertarget_size.x * rendertarget_size.y && "invalid target index");
-								assert(start_swizz + 3 < padded_size.x * padded_size.y && "invalid source index");
+								assert(start + rendertarget_size.x + 1 < (unsigned)(rendertarget_size.x * rendertarget_size.y) && "invalid target index");
+								assert(start_swizz + 3 < (unsigned)(padded_size.x * padded_size.y) && "invalid source index");
 
 								bb[start] = render_target[start_swizz];
 								bb[start + 1] = render_target[start_swizz + 1];
@@ -502,11 +502,11 @@ void render_stats(struct stats *stats, struct font *font, void *render_target, s
 	if (!stats)
 		return;
 
-	const struct vec2_int pos_avarage = { .x = FIRST_VAL_COLUMN_X, .y = INFO_ROW_Y };
-	const struct vec2_int pos_median = { .x = FIRST_VAL_COLUMN_X + COLUMN_X_INCREMENT, .y = INFO_ROW_Y };
-	const struct vec2_int pos_percentile_90 = { .x = FIRST_VAL_COLUMN_X + COLUMN_X_INCREMENT * 2, .y = INFO_ROW_Y };
-	const struct vec2_int pos_percentile_95 = { .x = FIRST_VAL_COLUMN_X + COLUMN_X_INCREMENT * 3, .y = INFO_ROW_Y };
-	const struct vec2_int pos_percentile_99 = { .x = FIRST_VAL_COLUMN_X + COLUMN_X_INCREMENT * 4, .y = INFO_ROW_Y };
+	const struct vec2_int pos_avarage = { FIRST_VAL_COLUMN_X, INFO_ROW_Y };
+	const struct vec2_int pos_median = { FIRST_VAL_COLUMN_X + COLUMN_X_INCREMENT, INFO_ROW_Y };
+	const struct vec2_int pos_percentile_90 = { FIRST_VAL_COLUMN_X + COLUMN_X_INCREMENT * 2, INFO_ROW_Y };
+	const struct vec2_int pos_percentile_95 = { FIRST_VAL_COLUMN_X + COLUMN_X_INCREMENT * 3, INFO_ROW_Y };
+	const struct vec2_int pos_percentile_99 = { FIRST_VAL_COLUMN_X + COLUMN_X_INCREMENT * 4, INFO_ROW_Y };
 
 	/* Info line */
 	font_render_text(render_target, target_size, font, "avg", &pos_avarage, 0);
@@ -616,22 +616,22 @@ void thread_data_init(struct thread_data *data, const uint32_t buffer_count, con
 	data->buffer_count = buffer_count;
 	if (rasterizer_uses_tiles())
 	{
-		data->raster_area_mins = malloc(sizeof(struct vec2_int) * raster_area_count);
-		data->raster_area_maxs = malloc(sizeof(struct vec2_int) * raster_area_count);
+		data->raster_area_mins = (struct vec2_int *)malloc(sizeof(struct vec2_int) * raster_area_count);
+		data->raster_area_maxs = (struct vec2_int *)malloc(sizeof(struct vec2_int) * raster_area_count);
 		data->raster_area_count = raster_area_count;
 	}
 	else
 	{
-		data->raster_area_mins = malloc(sizeof(struct vec2_int));
-		data->raster_area_maxs = malloc(sizeof(struct vec2_int));
+		data->raster_area_mins = (struct vec2_int *)malloc(sizeof(struct vec2_int));
+		data->raster_area_maxs = (struct vec2_int *)malloc(sizeof(struct vec2_int));
 		data->raster_area_count = 1;
 	}
-	data->vert_bufs = malloc(sizeof(struct vec4_float *) * buffer_count);
-	data->uv_bufs = malloc(sizeof(struct vec2_float *) * buffer_count);
-	data->ind_bufs = malloc(sizeof(unsigned int *) * buffer_count);
-	data->ind_counts = malloc(sizeof(unsigned int) * buffer_count);
-	data->textures = malloc(sizeof(uint32_t *) * buffer_count);
-	data->texture_sizes = malloc(sizeof(struct vec2_int *) * buffer_count);
+	data->vert_bufs = (struct vec4_float **)malloc(sizeof(struct vec4_float *) * buffer_count);
+	data->uv_bufs = (struct vec2_float **)malloc(sizeof(struct vec2_float *) * buffer_count);
+	data->ind_bufs = (unsigned int **)malloc(sizeof(unsigned int *) * buffer_count);
+	data->ind_counts = (unsigned int *)malloc(sizeof(unsigned int) * buffer_count);
+	data->textures = (uint32_t **)malloc(sizeof(uint32_t *) * buffer_count);
+	data->texture_sizes = (struct vec2_int **)malloc(sizeof(struct vec2_int *) * buffer_count);
 }
 
 void thread_data_deinit(struct thread_data *data)
@@ -659,7 +659,7 @@ void thread_data_calculate_areas(struct thread_data *data, const unsigned int co
 		 * For example a task manager which would give a new task to 
 		 * which ever thread got finished first until all tasks were completed.
 		 * Giving all threads tasks from all around the screen in an attempt for even some load balancing. */
-		int tile_size = rasterizer_get_tile_size();
+		int tile_size = (int)rasterizer_get_tile_size();
 		struct vec2_int padded_size;
 		rasterizer_get_padded_size(backbuffer_size, &padded_size);
 		unsigned int current_core = 0;
@@ -672,7 +672,7 @@ void thread_data_calculate_areas(struct thread_data *data, const unsigned int co
 				data[current_core].raster_area_mins[area_index].y = y;
 				data[current_core].raster_area_maxs[area_index].x = x + tile_size - 1;
 				data[current_core].raster_area_maxs[area_index].y = y + tile_size - 1;
-				data[current_core].raster_area_count = area_index + 1;
+				data[current_core].raster_area_count = (uint32_t)(area_index + 1);
 
 				++current_core;
 				if (current_core >= core_count)
@@ -685,9 +685,9 @@ void thread_data_calculate_areas(struct thread_data *data, const unsigned int co
 	}
 	else
 	{
-		unsigned int columns = core_count / 2;
-		unsigned int width = backbuffer_size->x / columns;
-		unsigned int i;
+		int columns = (int)core_count / 2;
+		int width = backbuffer_size->x / columns;
+		int i;
 		for (i = 0; i < columns; ++i)
 		{
 			data[i].raster_area_mins[0].x = i * width;
@@ -696,11 +696,11 @@ void thread_data_calculate_areas(struct thread_data *data, const unsigned int co
 			data[i].raster_area_maxs[0].y = backbuffer_size->y / 2 - 1;
 		}
 
-		columns = core_count - columns;
-		for (unsigned int j = 0; i < core_count; ++i, ++j)
+		columns = (int)core_count - columns;
+		for (int j = 0; i < (int)core_count; ++i, ++j)
 		{
 			data[i].raster_area_mins[0].x = j * width;
-			data[i].raster_area_maxs[0].x = i == core_count - 1 ? backbuffer_size->x - 1 : j * width + width - 1;
+			data[i].raster_area_maxs[0].x = i == (int)core_count - 1 ? backbuffer_size->x - 1 : j * width + width - 1;
 			data[i].raster_area_mins[0].y = backbuffer_size->y / 2;
 			data[i].raster_area_maxs[0].y = backbuffer_size->y - 1;
 		}

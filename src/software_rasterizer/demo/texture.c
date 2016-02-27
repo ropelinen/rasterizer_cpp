@@ -6,6 +6,7 @@
 
 #pragma warning(push)
 #pragma warning(disable : 4255) /* no function prototype given : converting '()' to '(void)' */
+#pragma warning(disable : 4365) /* signed/unsigned mismatch */
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb\stb_image.h>
 #pragma warning(pop)
@@ -20,7 +21,7 @@ struct texture *texture_create(const char *file_name)
 {
 	assert(file_name && "texture_create: file_name is NULL");
 
-	struct texture *texture = malloc(sizeof(struct texture));
+	struct texture *texture = (struct texture *)malloc(sizeof(struct texture));
 
 	int n;
 	unsigned char *data = stbi_load(file_name, &texture->size.x, &texture->size.y, &n, 3);
@@ -30,9 +31,9 @@ struct texture *texture_create(const char *file_name)
 		return NULL;
 	}
 
-	texture->buf = malloc(texture->size.x * texture->size.y * sizeof(uint32_t));
-	for (int i = 0, j = 0; i < texture->size.x * texture->size.y; ++i, j += 3)
-		texture->buf[i] = (data[j] << 16) | (data[j + 1] << 8) | data[j + 2];
+	texture->buf = (uint32_t *)malloc(texture->size.x * texture->size.y * sizeof(uint32_t));
+	for (int i = 0, j = 0; i < (texture->size.x * texture->size.y); ++i, j += 3)
+		texture->buf[i] = (uint32_t)((data[j] << 16) | (data[j + 1] << 8) | data[j + 2]);
 
 	stbi_image_free(data);
 

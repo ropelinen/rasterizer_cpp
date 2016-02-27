@@ -39,8 +39,6 @@ bool thread_has_task(struct thread *thread);
 void thread_wait_for_task(struct thread *thread);
 
 /* Input */
-bool is_key_down(struct api_info *api_info, enum keycodes keycode);
-
 enum keycodes
 {
 	KEY_A = 0,
@@ -71,6 +69,8 @@ enum keycodes
 	KEY_Z,
 	KEY_COUNT
 };
+
+bool is_key_down(struct api_info *api_info, enum keycodes keycode);
 
 
 #endif /* RPLNN_OSAL_H */

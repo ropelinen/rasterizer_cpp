@@ -5,6 +5,7 @@
 #define STB_TRUETYPE_IMPLEMENTATION
 #pragma warning(push)
 #pragma warning(disable : 4100) /* unreferenced formal parameter */
+#pragma warning(disable : 4365) /* signed/unsigned mismatch */
 #include <stb/stb_truetype.h>
 #pragma warning(pop)
 
@@ -24,13 +25,13 @@ struct font *font_create(const char *file_name)
 {
 	assert(file_name && "font_create: file_name is NULL");
 
-	struct font *font = malloc(sizeof(struct font));
+	struct font *font = (struct font *)malloc(sizeof(struct font));
 	FILE *font_file = fopen(file_name, "rb");
 	if (!font_file)
 		return NULL;
 
 	fseek(font_file, 0, SEEK_END);
-	int size = ftell(font_file);
+	unsigned size = (unsigned)ftell(font_file);
 	fseek(font_file, 0, SEEK_SET);
 
 	font->buffer = malloc(size);
@@ -38,7 +39,7 @@ struct font *font_create(const char *file_name)
 	fread(font->buffer, size, 1, font_file);
 	fclose(font_file);
 
-	if (!stbtt_InitFont(&font->font_info, font->buffer, 0))
+	if (!stbtt_InitFont(&font->font_info, (const unsigned char *)font->buffer, 0))
 		return NULL;
 
 	return font;

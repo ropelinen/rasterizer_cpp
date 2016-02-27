@@ -146,8 +146,8 @@ void renderer_initialize(struct renderer_info *info, unsigned int width, unsigne
 	BITMAPINFO *bitmapinfo = &(info->bitmapinfo);
 	memset(bitmapinfo, 0, sizeof(BITMAPINFO));
 	bitmapinfo->bmiHeader.biSize = sizeof(BITMAPINFO);
-	bitmapinfo->bmiHeader.biWidth = width;
-	bitmapinfo->bmiHeader.biHeight = height;
+	bitmapinfo->bmiHeader.biWidth = (LONG)width;
+	bitmapinfo->bmiHeader.biHeight = (LONG)height;
 	bitmapinfo->bmiHeader.biPlanes = 1;
 	bitmapinfo->bmiHeader.biBitCount = 32;
 	bitmapinfo->bmiHeader.biCompression = BI_RGB;
@@ -224,8 +224,8 @@ struct vec2_int get_backbuffer_size(struct renderer_info *info)
 
 #if RPLNN_RENDERER == RPLNN_RENDERER_GDI
 	struct vec2_int size;
-	size.x = info->width; 
-	size.y = info->height;
+	size.x = (int32_t)info->width; 
+	size.y = (int32_t)info->height;
 #else
 	struct vec2_int size = { .x = -1. .y = -1 };
 #endif
@@ -238,7 +238,7 @@ void renderer_clear_backbuffer(struct renderer_info *info, const uint32_t color)
 
 #if RPLNN_RENDERER == RPLNN_RENDERER_GDI
 	for (unsigned i = 0; i < info->width * info->height; ++i)
-		((int*)info->buffer)[i] = color;
+		((uint32_t *)info->buffer)[i] = color;
 #endif
 }
 
@@ -246,7 +246,7 @@ uint64_t get_time(void)
 {
 	LARGE_INTEGER time;
 	QueryPerformanceCounter(&time);
-	return time.QuadPart;
+	return (uint64_t)time.QuadPart;
 }
 
 uint64_t get_time_microseconds(const uint64_t time)
@@ -266,7 +266,11 @@ unsigned int get_logical_core_count(void)
 	//Use GetModuleHandle to get a handle to the DLL that contains the function
 	//and GetProcAddress to get a pointer to the function if available.
 	typedef BOOL(WINAPI *LPFN_ISWOW64PROCESS) (HANDLE, PBOOL);
+#pragma warning(push)
+#pragma warning(disable : 4191) /* 'type cast': unsafe conversion from 'FARPROC' to 'LPFN_ISWOW64PROCESS' */
+	/* This is completely safe and pretty much the only way to do this, thanks win api */
 	LPFN_ISWOW64PROCESS IsWow64 = (LPFN_ISWOW64PROCESS)GetProcAddress(GetModuleHandle(TEXT("kernel32")), "IsWow64Process");
+#pragma warning(pop)
 
 	BOOL is_wow64 = false;
 	if (IsWow64)
@@ -354,7 +358,7 @@ DWORD WINAPI thread_func(LPVOID lpParam)
 
 struct thread *thread_create(const int core_id)
 {
-	struct thread *thread = malloc(sizeof(struct thread));
+	struct thread *thread = (struct thread *)malloc(sizeof(struct thread));
 
 	thread->sleep_semaphore = CreateSemaphore(NULL, 0, 100, NULL);
 	if (!thread->sleep_semaphore)
@@ -468,7 +472,7 @@ bool thread_has_task(struct thread *thread)
 
 	bool has_task;
 	EnterCriticalSection(&thread->data_critical_section);
-	has_task = thread->func;
+	has_task = thread->func != NULL;
 	LeaveCriticalSection(&thread->data_critical_section);
 
 	return has_task;
@@ -571,12 +575,12 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
 			HDC hdc = BeginPaint(hwnd, &ps);
 			RECT rect;
 			GetClientRect(hwnd, &rect);
-			unsigned int dest_width = (unsigned)(rect.right - rect.left);
-			unsigned int dest_height = (unsigned)(rect.bottom - rect.top);
+			int dest_width = rect.right - rect.left;
+			int dest_height = rect.bottom - rect.top;
 			StretchDIBits(
 				hdc,
 				0, 0, dest_width, dest_height,
-				0, 0, renderer_info->width, renderer_info->height,
+				0, 0, (int)renderer_info->width, (int)renderer_info->height,
 				renderer_info->buffer,
 				&(renderer_info->bitmapinfo),
 				DIB_RGB_COLORS,
@@ -596,7 +600,7 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
 #pragma warning(disable : 4100) /* unreferenced formal parameter */
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
-	if (!SetProcessAffinityMask(GetCurrentProcess(), (1 << get_logical_core_count()) - 1))
+	if (!SetProcessAffinityMask(GetCurrentProcess(), (DWORD_PTR)(1 << get_logical_core_count()) - 1))
 		error_popup("Failed to set process affinity mask, threading might not work properly", false);
 
 	struct renderer_info renderer_info;

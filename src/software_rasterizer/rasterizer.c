@@ -101,7 +101,7 @@ struct vec2_int get_gb_intersection_point(const unsigned int oc, const struct ve
 	assert(p1 && "get_gb_intersection_point: p1 is NULL");
 	assert(p2 && "get_gb_intersection_point: p2 is NULL");
 
-	struct vec2_int result = { .x = 0, .y = 0 };
+	struct vec2_int result = { 0, 0 };
 
 	/* When doing fp / you would normally (a << frac_bits) / b but the multiply does that for us already. */
 
@@ -146,11 +146,11 @@ void lerp_vert_attributes(const struct vec2_int* vec_arr, const float *z_arr, co
 	const int32_t sub_multip = 1 << SUB_BITS;
 
 	/* Calculate weight */
-	uint32_t temp_x = vec_arr[p1i].x - vec_arr[p0i].x;
-	uint32_t temp_y = vec_arr[p1i].y - vec_arr[p0i].y;
+	uint32_t temp_x = (uint32_t)(vec_arr[p1i].x - vec_arr[p0i].x);
+	uint32_t temp_y = (uint32_t)(vec_arr[p1i].y - vec_arr[p0i].y);
 	uint32_t len_org = MUL_FIXED(temp_x, temp_x, sub_multip) + MUL_FIXED(temp_y, temp_y, sub_multip);
-	temp_x = clip->x - vec_arr[p0i].x;
-	temp_y = clip->y - vec_arr[p0i].y;
+	temp_x = (uint32_t)(clip->x - vec_arr[p0i].x);
+	temp_y = (uint32_t)(clip->y - vec_arr[p0i].y);
 	uint32_t len_int = MUL_FIXED(temp_x, temp_x, sub_multip) + MUL_FIXED(temp_y, temp_y, sub_multip);
 	float weight = (float)len_int / (float)len_org;
 	weight = sqrtf(weight);
@@ -461,15 +461,15 @@ void rasterizer_rasterize(uint32_t *render_target, uint32_t *depth_buf, const st
 
 			/* Clip to screen and round to pixel centers */
 #ifdef USE_SIMD
-			min.x = ((max(min.x, rast_min.x) & ~sub_mask) & ~sub_multip) + half_pixel;
-			min.y = ((max(min.y, rast_min.y) & ~sub_mask) & ~sub_multip) + half_pixel;
-			max.x = ((min(max.x, rast_max.x) & ~sub_mask) | sub_multip) + half_pixel;
-			max.y = ((min(max.y, rast_max.y) & ~sub_mask) | sub_multip) + half_pixel;
+			min.x = ((std::max(min.x, rast_min.x) & ~sub_mask) & ~sub_multip) + half_pixel;
+			min.y = ((std::max(min.y, rast_min.y) & ~sub_mask) & ~sub_multip) + half_pixel;
+			max.x = ((std::min(max.x, rast_max.x) & ~sub_mask) | sub_multip) + half_pixel;
+			max.y = ((std::min(max.y, rast_max.y) & ~sub_mask) | sub_multip) + half_pixel;
 #else
-			min.x = (max(min.x, rast_min.x) & ~sub_mask) + half_pixel;
-			min.y = (max(min.y, rast_min.y) & ~sub_mask) + half_pixel;
-			max.x = (min(max.x, rast_max.x) & ~sub_mask) + half_pixel;
-			max.y = (min(max.y, rast_max.y) & ~sub_mask) + half_pixel;
+			min.x = (std::max(min.x, rast_min.x) & ~sub_mask) + half_pixel;
+			min.y = (std::max(min.y, rast_min.y) & ~sub_mask) + half_pixel;
+			max.x = (std::min(max.x, rast_max.x) & ~sub_mask) + half_pixel;
+			max.y = (std::min(max.y, rast_max.y) & ~sub_mask) + half_pixel;
 #endif
 
 			/* Orient at min point
@@ -520,17 +520,17 @@ void rasterizer_rasterize(uint32_t *render_target, uint32_t *depth_buf, const st
 			{
 				struct vec2_int padded_size;
 				rasterizer_get_padded_size(target_size, &padded_size);
-				pixel_index_row = TILE_SIZE * TILE_SIZE * 
-					((padded_size.x / TILE_SIZE) * (rasterize_area_min->y / TILE_SIZE) + (rasterize_area_min->x / TILE_SIZE)); /* tile index */
+				pixel_index_row = (unsigned)(TILE_SIZE * TILE_SIZE * 
+					((padded_size.x / TILE_SIZE) * (rasterize_area_min->y / TILE_SIZE) + (rasterize_area_min->x / TILE_SIZE))); /* tile index */
 				pixel_index_row += TILE_SIZE 
 					* ((((min.y - half_pixel) / sub_multip) + half_height) - rasterize_area_min->y) /* y */
 					+ (((((min.x - half_pixel) / sub_multip) + half_width) - rasterize_area_min->x) * 2); /* x */
 
 			}
 #else
-			unsigned int pixel_index_row = target_size->x
+			unsigned int pixel_index_row = (unsigned)(target_size->x
 				* (((min.y - half_pixel) / sub_multip) + half_height) /* y */
-				+ ((((min.x - half_pixel) / sub_multip) + half_width) * 2); /* x */
+				+ ((((min.x - half_pixel) / sub_multip) + half_width) * 2)); /* x */
 #endif
 
 			const __m128i step_size = _mm_set_epi32(2 * sub_multip, 2 * sub_multip, 2 * sub_multip, 2 * sub_multip);
@@ -618,7 +618,7 @@ void rasterizer_rasterize(uint32_t *render_target, uint32_t *depth_buf, const st
 								assert(((uint32_t *)&texture_index)[pixel] < (unsigned)(texture_size->x * texture_size->y) && "rasterizer_rasterize: invalid texture_index");
 
 								/* There must be a better way to do this */
-								depth_buf[pixel_index_start + pixel] = ((int32_t *)&z)[pixel];
+								depth_buf[pixel_index_start + pixel] = ((uint32_t *)&z)[pixel];
 								/* Mipmapping should help with this,
 								 * currently especially small triangles can cause cache misses
 								 * by accessing the texture in the opposite ends of the array.*/
@@ -626,7 +626,7 @@ void rasterizer_rasterize(uint32_t *render_target, uint32_t *depth_buf, const st
 							}
 						}
 					}
-					uint32_t double_step = step_x_12 * 2;
+					int32_t double_step = step_x_12 * 2;
 					w0 = _mm_add_epi32(w0, _mm_set_epi32(double_step, double_step, double_step, double_step));
 					double_step = step_x_20 * 2;
 					w1 = _mm_add_epi32(w1, _mm_set_epi32(double_step, double_step, double_step, double_step));
