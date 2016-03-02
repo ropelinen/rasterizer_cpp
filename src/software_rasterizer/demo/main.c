@@ -30,31 +30,28 @@ struct thread_data
 
 void thread_data_init(struct thread_data *data, const uint32_t buffer_count, const uint32_t raster_area_count);
 void thread_data_deinit(struct thread_data *data);
-void thread_data_calculate_areas(struct thread_data *data, const unsigned int core_count, const struct vec2_int *backbuffer_size);
+void thread_data_calculate_areas(struct thread_data *data, const unsigned int core_count, const struct vec2_int &backbuffer_size);
 void rasterize_thread(void *data);
 #endif
 
 void transform_vertices(const struct vec3_float *in_verts, struct vec4_float *out_verts, unsigned int vert_count,
-                     struct matrix_3x4 *translation, struct matrix_3x4 *rotation, struct matrix_4x4 *camera_projection);
-void handle_input(struct api_info *api_info, float dt, struct vec3_float *camera_trans);
+                     const struct matrix_3x4 &translation, const struct matrix_3x4 &rotation, const struct matrix_4x4 &camera_projection);
+void handle_input(const struct api_info &api_info, const float dt, struct vec3_float &camera_trans);
 
 void create_box_buffers(struct vec3_float *out_vert_buf, struct vec2_float *out_uv_buf, unsigned int *out_ind_buf);
 void generate_large_test_buffers(const struct vec3_float *vert_buf_box, const struct vec2_float *uv_box, const unsigned int *ind_buf_box,
 	struct vec3_float *out_vert_buf, struct vec2_float *out_uv, unsigned int *out_ind_buf, const struct vec3_float *box_offsets, const unsigned int box_count_out);
 
-void render_stats(struct stats *stats, struct font *font, void *render_target, struct vec2_int *target_size);
-void render_stat_line_ms(struct stats *stats, struct font *font, void *render_target, struct vec2_int *target_size, 
+void render_stats(const struct stats &stats, const struct font &font, void *render_target, const struct vec2_int &target_size);
+void render_stat_line_ms(const struct stats &stats, const struct font &font, void *render_target, const struct vec2_int &target_size, 
                          const char *stat_name, const unsigned char stat_id, const int row_y, const int stat_name_x, const int first_val_x, const int x_increment);
-void render_stat_line_mus(struct stats *stats, struct font *font, void *render_target, struct vec2_int *target_size,
+void render_stat_line_mus(const struct stats &stats, const struct font &font, void *render_target, const struct vec2_int &target_size,
                           const char *stat_name, const unsigned char stat_id, const int row_y, const int stat_name_x, const int first_val_x, const int x_increment);
 
 /* A generic platform independent main function.
  * See osal.c for platform specific main. */
-void main(struct api_info *api_info, struct renderer_info *renderer_info)
+void main(struct api_info &api_info, struct renderer_info &renderer_info)
 {
-	assert(api_info && "main: api_info is NULL");
-	assert(renderer_info && "main: renderer_info is NULL");
-
 	struct texture *texture = texture_create("crate.png");
 	if (!texture)
 		error_popup("Failed to load the texture", true);
@@ -62,13 +59,13 @@ void main(struct api_info *api_info, struct renderer_info *renderer_info)
 	uint32_t *texture_data = NULL;
 	struct vec2_int *texture_size = NULL;
 
-	texture_get_info(texture, &texture_data, &texture_size);
+	texture_get_info(*texture, &texture_data, &texture_size);
 	if (!texture_data || !texture_size)
 		error_popup("Couldn't get texture info", true);
 
 	struct font *font = font_create("Tuffy.ttf");
 	if (font)
-		font_set_line_height(font, 19);
+		font_set_line_height(*font, 19);
 	else
 		error_popup("Failed to initialize the font", false);
 
@@ -99,15 +96,15 @@ void main(struct api_info *api_info, struct renderer_info *renderer_info)
 	/* Transfrom related */
 	struct vec3_float translation = { -5.5f, -8.0f, 10.0f };
 	struct vec3_float camera_trans = { 2.0f, -4.0f, 0.0f };
-	struct matrix_3x4 trans_mat = mat34_get_translation(&translation);
+	struct matrix_3x4 trans_mat = mat34_get_translation(translation);
 	translation.x += 2.0f; translation.z += 3.0f;
-	struct matrix_3x4 trans_mat2 = mat34_get_translation(&translation);
+	struct matrix_3x4 trans_mat2 = mat34_get_translation(translation);
 	translation.x += 2.0f; translation.y += 4.0f; translation.z += 15.0f;
-	struct matrix_3x4 trans_mat_large = mat34_get_translation(&translation);
+	struct matrix_3x4 trans_mat_large = mat34_get_translation(translation);
 	translation.x += 26.0f; translation.y -= 8.0f; translation.z += 10.0f;
-	struct matrix_3x4 trans_mat_large2 = mat34_get_translation(&translation);
+	struct matrix_3x4 trans_mat_large2 = mat34_get_translation(translation);
 	translation.x += 10.0f; translation.y += 18.0f; translation.z += 50.0f;
-	struct matrix_3x4 trans_mat_large3 = mat34_get_translation(&translation);
+	struct matrix_3x4 trans_mat_large3 = mat34_get_translation(translation);
 
 	/* Get correctly sized render target */
 	struct vec2_int rendertarget_size = get_backbuffer_size(renderer_info);
@@ -117,7 +114,7 @@ void main(struct api_info *api_info, struct renderer_info *renderer_info)
 	{
 		if (rasterizer_uses_tiles())
 		{
-			rasterizer_get_padded_size(&rendertarget_size, &padded_size);
+			rasterizer_get_padded_size(rendertarget_size, padded_size);
 			render_target = new uint32_t[(size_t)(padded_size.x * padded_size.y)];
 		}
 		else
@@ -197,7 +194,7 @@ void main(struct api_info *api_info, struct renderer_info *renderer_info)
 		thread_data[i].texture_sizes[4] = texture_size;
 	}
 
-	thread_data_calculate_areas(thread_data, core_count, &rendertarget_size);
+	thread_data_calculate_areas(thread_data, core_count, rendertarget_size);
 #endif
 
 	while (event_loop())
@@ -223,50 +220,50 @@ void main(struct api_info *api_info, struct renderer_info *renderer_info)
 
 		float dt = (float)frame_time_mus / 1000000.0f;
 
-		handle_input(api_info, dt, &camera_trans);
+		handle_input(api_info, dt, camera_trans);
 
 		/* Projection and view*/
-		struct matrix_3x4 camera_mat = mat34_get_translation(&camera_trans);
-		camera_mat = mat34_get_inverse(&camera_mat);
-		struct matrix_4x4 camera_projection = mat44_mul_mat34(&perspective_mat, &camera_mat);
+		struct matrix_3x4 camera_mat = mat34_get_translation(camera_trans);
+		camera_mat = mat34_get_inverse(camera_mat);
+		struct matrix_4x4 camera_projection = mat44_mul_mat34(perspective_mat, camera_mat);
 
 		/* World space */
 		struct matrix_3x4 rot_mat = mat34_get_rotation_y(DEG_TO_RAD(40.0f));
-		transform_vertices(&(vert_buf[0]), &(final_vert_buf[0]), sizeof(vert_buf) / sizeof(vert_buf[0]), &trans_mat, &rot_mat, &camera_projection);
+		transform_vertices(&(vert_buf[0]), &(final_vert_buf[0]), sizeof(vert_buf) / sizeof(vert_buf[0]), trans_mat, rot_mat, camera_projection);
 
 		rot_mat = mat34_get_rotation_y(DEG_TO_RAD(38.0f));
-		transform_vertices(&(vert_buf[0]), &(final_vert_buf2[0]), sizeof(vert_buf) / sizeof(vert_buf[0]), &trans_mat2, &rot_mat, &camera_projection);
+		transform_vertices(&(vert_buf[0]), &(final_vert_buf2[0]), sizeof(vert_buf) / sizeof(vert_buf[0]), trans_mat2, rot_mat, camera_projection);
 
 		rot_mat = mat34_get_rotation_y(DEG_TO_RAD(30.0f));
-		transform_vertices(&(vert_buf_large[0]), &(final_vert_buf_large[0]), sizeof(vert_buf_large) / sizeof(vert_buf_large[0]), &trans_mat_large, &rot_mat, &camera_projection);
+		transform_vertices(&(vert_buf_large[0]), &(final_vert_buf_large[0]), sizeof(vert_buf_large) / sizeof(vert_buf_large[0]), trans_mat_large, rot_mat, camera_projection);
 
 		rot_mat = mat34_get_rotation_y(DEG_TO_RAD(-45.0f));
-		transform_vertices(&(vert_buf_large[0]), &(final_vert_buf_large2[0]), sizeof(vert_buf_large) / sizeof(vert_buf_large[0]), &trans_mat_large2, &rot_mat, &camera_projection);
+		transform_vertices(&(vert_buf_large[0]), &(final_vert_buf_large2[0]), sizeof(vert_buf_large) / sizeof(vert_buf_large[0]), trans_mat_large2, rot_mat, camera_projection);
 
-		transform_vertices(&(vert_buf_large[0]), &(final_vert_buf_large3[0]), sizeof(vert_buf_large) / sizeof(vert_buf_large[0]), &trans_mat_large3, &rot_mat, &camera_projection);
+		transform_vertices(&(vert_buf_large[0]), &(final_vert_buf_large3[0]), sizeof(vert_buf_large) / sizeof(vert_buf_large[0]), trans_mat_large3, rot_mat, camera_projection);
 
 		if (rasterizer_uses_tiles())
-			rasterizer_clear_depth_buffer(depth_buf, &padded_size);
+			rasterizer_clear_depth_buffer(depth_buf, padded_size);
 		else
-			rasterizer_clear_depth_buffer(depth_buf, &rendertarget_size);
+			rasterizer_clear_depth_buffer(depth_buf, rendertarget_size);
 
 		uint64_t raster_duration = get_time();
 #ifdef USE_THREADING
 		for (unsigned int i = 0; i < core_count; ++i)
-			thread_set_task(threads[i], &rasterize_thread, &thread_data[i]);
+			thread_set_task(*threads[i], &rasterize_thread, &thread_data[i]);
 
 		for (unsigned int i = 0; i < core_count; ++i)
-			thread_wait_for_task(threads[i]);
+			thread_wait_for_task(*threads[i]);
 #else
 		const struct vec2_int area_min = { 0, 0 };
 		struct vec2_int area_max;
 		area_max.x = rendertarget_size.x - 1;
 		area_max.y = rendertarget_size.y - 1;
-		rasterizer_rasterize(render_target, depth_buf, &rendertarget_size, &area_min, &area_max, &final_vert_buf[0], &uv[0], &ind_buf[0], ind_buf_size, texture_data, texture_size);
-		rasterizer_rasterize(render_target, depth_buf, &rendertarget_size, &area_min, &area_max, &final_vert_buf2[0], &uv[0], &ind_buf[0], ind_buf_size, texture_data, texture_size);
-		rasterizer_rasterize(render_target, depth_buf, &rendertarget_size, &area_min, &area_max, &final_vert_buf_large[0], &uv_large[0], &ind_buf_large[0], ind_buf_large_size, texture_data, texture_size);
-		rasterizer_rasterize(render_target, depth_buf, &rendertarget_size, &area_min, &area_max, &final_vert_buf_large2[0], &uv_large[0], &ind_buf_large[0], ind_buf_large_size, texture_data, texture_size);
-		rasterizer_rasterize(render_target, depth_buf, &rendertarget_size, &area_min, &area_max, &final_vert_buf_large3[0], &uv_large[0], &ind_buf_large[0], ind_buf_large_size, texture_data, texture_size);
+		rasterizer_rasterize(render_target, depth_buf, rendertarget_size, area_min, area_max, &final_vert_buf[0], &uv[0], &ind_buf[0], ind_buf_size, texture_data, *texture_size);
+		rasterizer_rasterize(render_target, depth_buf, rendertarget_size, area_min, area_max, &final_vert_buf2[0], &uv[0], &ind_buf[0], ind_buf_size, texture_data, *texture_size);
+		rasterizer_rasterize(render_target, depth_buf, rendertarget_size, area_min, area_max, &final_vert_buf_large[0], &uv_large[0], &ind_buf_large[0], ind_buf_large_size, texture_data, *texture_size);
+		rasterizer_rasterize(render_target, depth_buf, rendertarget_size, area_min, area_max, &final_vert_buf_large2[0], &uv_large[0], &ind_buf_large[0], ind_buf_large_size, texture_data, *texture_size);
+		rasterizer_rasterize(render_target, depth_buf, rendertarget_size, area_min, area_max, &final_vert_buf_large3[0], &uv_large[0], &ind_buf_large[0], ind_buf_large_size, texture_data, *texture_size);
 #endif
 		raster_duration = get_time() - raster_duration;
 
@@ -324,8 +321,8 @@ void main(struct api_info *api_info, struct renderer_info *renderer_info)
 
 		/* Stat rendering should be easy to disable/modify.
 		 * Maybe a bit field for what should be shown, uint32_t would be easily enough. */
-		if (stats && font && stats_profiling_run_complete(stats))
-			render_stats(stats, font, get_backbuffer(renderer_info), &rendertarget_size);
+		if (stats && font && stats_profiling_run_complete(*stats))
+			render_stats(*stats, *font, get_backbuffer(renderer_info), rendertarget_size);
 
 		finish_drawing(api_info);
 
@@ -333,10 +330,10 @@ void main(struct api_info *api_info, struct renderer_info *renderer_info)
 		frame_time_mus = (uint32_t)get_time_microseconds(frame_end - frame_start);
 		if (stats && stabilizing_delay == 0)
 		{
-			stats_update_stat(stats, STAT_FRAME, frame_time_mus);
-			stats_update_stat(stats, STAT_BLIT, get_blit_duration_ms(renderer_info));
-			stats_update_stat(stats, STAT_RASTER, (uint32_t)get_time_microseconds(raster_duration));
-			stats_frame_complete(stats);
+			stats_update_stat(*stats, STAT_FRAME, frame_time_mus);
+			stats_update_stat(*stats, STAT_BLIT, get_blit_duration_ms(renderer_info));
+			stats_update_stat(*stats, STAT_RASTER, (uint32_t)get_time_microseconds(raster_duration));
+			stats_frame_complete(*stats);
 		}
 
 		frame_start = frame_end;
@@ -368,36 +365,30 @@ void main(struct api_info *api_info, struct renderer_info *renderer_info)
 }
 
 void transform_vertices(const struct vec3_float *in_verts, struct vec4_float *out_verts, unsigned int vert_count,
-                     struct matrix_3x4 *translation, struct matrix_3x4 *rotation, struct matrix_4x4 *camera_projection)
+                     const struct matrix_3x4 &translation, const struct matrix_3x4 &rotation, const struct matrix_4x4 &camera_projection)
 {
 	assert(in_verts && "transform_vertices: in_verts is NULL");
 	assert(out_verts && "transform_vertices: out_verts is NULL");
-	assert(translation && "transform_vertices: translation is NULL");
-	assert(rotation && "transform_vertices: rotation is NULL");
-	assert(camera_projection && "transform_vertices: camera_projection is NULL");
 
 	struct matrix_3x4 world_transform = mat34_mul_mat34(translation, rotation);
-	struct matrix_4x4 final_transform = mat44_mul_mat34(camera_projection, &world_transform);
+	struct matrix_4x4 final_transform = mat44_mul_mat34(camera_projection, world_transform);
 	for (unsigned int i = 0; i < vert_count; ++i)
-		out_verts[i] = mat44_mul_vec3(&final_transform, &in_verts[i]);
+		out_verts[i] = mat44_mul_vec3(final_transform, in_verts[i]);
 }
 
-void handle_input(struct api_info *api_info, float dt, struct vec3_float *camera_trans)
+void handle_input(const struct api_info &api_info, const float dt, struct vec3_float &camera_trans)
 {
-	assert(api_info && "handle_input: api_info is NULL");
-	assert(camera_trans && "handle_input: camera_trans is NULL");
-
 	const float camera_speed = 10.0f;
 
 	if (is_key_down(api_info, KEY_D))
-		camera_trans->x += camera_speed * dt;
+		camera_trans.x += camera_speed * dt;
 	else if (is_key_down(api_info, KEY_A))
-		camera_trans->x -= camera_speed * dt;
+		camera_trans.x -= camera_speed * dt;
 
 	if (is_key_down(api_info, KEY_W))
-		camera_trans->z += camera_speed * dt;
+		camera_trans.z += camera_speed * dt;
 	else if (is_key_down(api_info, KEY_S))
-		camera_trans->z -= camera_speed * dt;
+		camera_trans.z -= camera_speed * dt;
 }
 
 void create_box_buffers(struct vec3_float *out_vert_buf, struct vec2_float *out_uv_buf, unsigned int *out_ind_buf)
@@ -472,11 +463,11 @@ void generate_large_test_buffers(const struct vec3_float *vert_buf_box, const st
 	
 	for (unsigned int box = 0; box < box_count_out; ++box)
 	{
-		trans_mat = mat34_get_translation(&(box_offsets[box]));
+		trans_mat = mat34_get_translation(box_offsets[box]);
 		for (unsigned int i = 0; i < VERTS_IN_BOX; ++i)
 		{
 			unsigned int vert_ind = box * VERTS_IN_BOX + i;
-			out_vert_buf[vert_ind] = mat34_mul_vec3(&trans_mat, &(vert_buf_box[i]));
+			out_vert_buf[vert_ind] = mat34_mul_vec3(trans_mat, vert_buf_box[i]);
 			out_uv[vert_ind] = uv_box[i];
 		}
 		for (unsigned int i = 0; i < 36; ++i)
@@ -486,7 +477,7 @@ void generate_large_test_buffers(const struct vec3_float *vert_buf_box, const st
 	}
 }
 
-void render_stats(struct stats *stats, struct font *font, void *render_target, struct vec2_int *target_size)
+void render_stats(const struct stats &stats, const struct font &font, void *render_target, const struct vec2_int &target_size)
 {
 #define STAT_COLUMN_X 5
 #define FIRST_VAL_COLUMN_X 100
@@ -494,13 +485,7 @@ void render_stats(struct stats *stats, struct font *font, void *render_target, s
 #define INFO_ROW_Y 5
 #define ROW_Y_INCREMENT 20
 
-	assert(stats && "render_stats: stats is NULL");
-	assert(font && "render_stats: font is NULL");
 	assert(render_target && "render_stats: render_target is NULL");
-	assert(target_size && "render_stats: target_size is NULL");
-
-	if (!stats)
-		return;
 
 	const struct vec2_int pos_avarage = { FIRST_VAL_COLUMN_X, INFO_ROW_Y };
 	const struct vec2_int pos_median = { FIRST_VAL_COLUMN_X + COLUMN_X_INCREMENT, INFO_ROW_Y };
@@ -509,11 +494,11 @@ void render_stats(struct stats *stats, struct font *font, void *render_target, s
 	const struct vec2_int pos_percentile_99 = { FIRST_VAL_COLUMN_X + COLUMN_X_INCREMENT * 4, INFO_ROW_Y };
 
 	/* Info line */
-	font_render_text(render_target, target_size, font, "avg", &pos_avarage, 0);
-	font_render_text(render_target, target_size, font, "mdn", &pos_median, 0);
-	font_render_text(render_target, target_size, font, "90%", &pos_percentile_90, 0);
-	font_render_text(render_target, target_size, font, "95%", &pos_percentile_95, 0);
-	font_render_text(render_target, target_size, font, "99%", &pos_percentile_99, 0);
+	font_render_text(render_target, target_size, font, "avg", pos_avarage, 0);
+	font_render_text(render_target, target_size, font, "mdn", pos_median, 0);
+	font_render_text(render_target, target_size, font, "90%", pos_percentile_90, 0);
+	font_render_text(render_target, target_size, font, "95%", pos_percentile_95, 0);
+	font_render_text(render_target, target_size, font, "99%", pos_percentile_99, 0);
 
 	/* Frame time */
 	render_stat_line_ms(stats, font, render_target, target_size, "frame (ms):", STAT_FRAME, INFO_ROW_Y + ROW_Y_INCREMENT, STAT_COLUMN_X, FIRST_VAL_COLUMN_X, COLUMN_X_INCREMENT);
@@ -529,13 +514,10 @@ void render_stats(struct stats *stats, struct font *font, void *render_target, s
 #undef ROW_Y_INCREMENT
 }
 
-void render_stat_line_ms(struct stats *stats, struct font *font, void *render_target, struct vec2_int *target_size,
+void render_stat_line_ms(const struct stats &stats, const struct font &font, void *render_target, const struct vec2_int &target_size,
                          const char *stat_name, const unsigned char stat_id, const int row_y, const int stat_name_x, const int first_val_x, const int x_increment)
 {
-	assert(stats && "render_stat_line_ms: stats is NULL");
-	assert(font && "render_stat_line_ms: font is NULL");
 	assert(render_target && "render_stat_line_ms: render_target is NULL");
-	assert(target_size && "render_stat_line_ms: target_size is NULL");
 	assert(stat_name && "render_stat_line_ms: stat_name is NULL");
 
 	struct vec2_int pos;
@@ -543,38 +525,35 @@ void render_stat_line_ms(struct stats *stats, struct font *font, void *render_ta
 	pos.y = row_y;
 
 	/* Render stat name*/
-	font_render_text(render_target, target_size, font, stat_name, &pos, 0);
+	font_render_text(render_target, target_size, font, stat_name, pos, 0);
 
 	char str[10];
 	/* Avarage */
 	pos.x = first_val_x;
 	if (!float_to_string((float)stats_get_avarage(stats, stat_id) / 1000.0f, str, 10)) { /* The value has been truncated, do something?? */ }
-	font_render_text(render_target, target_size, font, str, &pos, 0);
+	font_render_text(render_target, target_size, font, str, pos, 0);
 	/* Median */
 	pos.x += x_increment;
 	if (!float_to_string((float)stats_get_stat_percentile(stats, stat_id, 50.0f) / 1000.0f, str, 10)) { /* The value has been truncated, do something?? */ }
-	font_render_text(render_target, target_size, font, str, &pos, 0);
+	font_render_text(render_target, target_size, font, str, pos, 0);
 	/* 90th percentile */
 	pos.x += x_increment;
 	if (!float_to_string((float)stats_get_stat_percentile(stats, stat_id, 90.0f) / 1000.0f, str, 10)) { /* The value has been truncated, do something?? */ }
-	font_render_text(render_target, target_size, font, str, &pos, 0);
+	font_render_text(render_target, target_size, font, str, pos, 0);
 	/* 95th percentile */
 	pos.x += x_increment;
 	if (!float_to_string((float)stats_get_stat_percentile(stats, stat_id, 95.0f) / 1000.0f, str, 10)) { /* The value has been truncated, do something?? */ }
-	font_render_text(render_target, target_size, font, str, &pos, 0);
+	font_render_text(render_target, target_size, font, str, pos, 0);
 	/* 99th percentile */
 	pos.x += x_increment;
 	if (!float_to_string((float)stats_get_stat_percentile(stats, stat_id, 99.0f) / 1000.0f, str, 10)) { /* The value has been truncated, do something?? */ }
-	font_render_text(render_target, target_size, font, str, &pos, 0);
+	font_render_text(render_target, target_size, font, str, pos, 0);
 }
 
-void render_stat_line_mus(struct stats *stats, struct font *font, void *render_target, struct vec2_int *target_size,
+void render_stat_line_mus(const struct stats &stats, const struct font &font, void *render_target, const struct vec2_int &target_size,
                           const char *stat_name, const unsigned char stat_id, const int row_y, const int stat_name_x, const int first_val_x, const int x_increment)
 {
-	assert(stats && "render_stat_line_mus: stats is NULL");
-	assert(font && "render_stat_line_mus: font is NULL");
 	assert(render_target && "render_stat_line_mus: render_target is NULL");
-	assert(target_size && "render_stat_line_mus: target_size is NULL");
 	assert(stat_name && "render_stat_line_mus: stat_name is NULL");
 
 	struct vec2_int pos;
@@ -582,30 +561,30 @@ void render_stat_line_mus(struct stats *stats, struct font *font, void *render_t
 	pos.y = row_y;
 
 	/* Render stat name*/
-	font_render_text(render_target, target_size, font, stat_name, &pos, 0);
+	font_render_text(render_target, target_size, font, stat_name, pos, 0);
 
 	char str[10];
 
 	/* Avarage */
 	pos.x = first_val_x;
 	if (uint64_to_string((uint64_t)stats_get_avarage(stats, stat_id), str, 10))
-		font_render_text(render_target, target_size, font, str, &pos, 0);
+		font_render_text(render_target, target_size, font, str, pos, 0);
 	/* Median */
 	pos.x += x_increment;
 	if (uint64_to_string((uint64_t)stats_get_stat_percentile(stats, stat_id, 50.0f), str, 10))
-		font_render_text(render_target, target_size, font, str, &pos, 0);
+		font_render_text(render_target, target_size, font, str, pos, 0);
 	/* 90th percentile */
 	pos.x += x_increment;
 	if (uint64_to_string((uint64_t)stats_get_stat_percentile(stats, stat_id, 90.0f), str, 10))
-		font_render_text(render_target, target_size, font, str, &pos, 0);
+		font_render_text(render_target, target_size, font, str, pos, 0);
 	/* 95th percentile */
 	pos.x += x_increment;
 	if (uint64_to_string((uint64_t)stats_get_stat_percentile(stats, stat_id, 95.0f), str, 10))
-		font_render_text(render_target, target_size, font, str, &pos, 0);
+		font_render_text(render_target, target_size, font, str, pos, 0);
 	/* 99th percentile */
 	pos.x += x_increment;
 	if (uint64_to_string((uint64_t)stats_get_stat_percentile(stats, stat_id, 99.0f), str, 10))
-		font_render_text(render_target, target_size, font, str, &pos, 0);
+		font_render_text(render_target, target_size, font, str, pos, 0);
 }
 
 #ifdef USE_THREADING
@@ -655,10 +634,9 @@ void thread_data_deinit(struct thread_data *data)
 	delete[] data->texture_sizes;
 }
 
-void thread_data_calculate_areas(struct thread_data *data, const unsigned int core_count, const struct vec2_int *backbuffer_size)
+void thread_data_calculate_areas(struct thread_data *data, const unsigned int core_count, const struct vec2_int &backbuffer_size)
 {
 	assert(data && "thread_data_calculate_areas: data is NULL");
-	assert(backbuffer_size && "thread_data_calculate_areas: backbuffer_size is NULL");
 
 	if (rasterizer_uses_tiles())
 	{
@@ -668,7 +646,7 @@ void thread_data_calculate_areas(struct thread_data *data, const unsigned int co
 		 * Giving all threads tasks from all around the screen in an attempt for even some load balancing. */
 		int tile_size = (int)rasterizer_get_tile_size();
 		struct vec2_int padded_size;
-		rasterizer_get_padded_size(backbuffer_size, &padded_size);
+		rasterizer_get_padded_size(backbuffer_size, padded_size);
 		unsigned int current_core = 0;
 		int area_index = 0;
 		for (int y = 0; y < padded_size.y; y += tile_size)
@@ -693,23 +671,23 @@ void thread_data_calculate_areas(struct thread_data *data, const unsigned int co
 	else
 	{
 		int columns = (int)core_count / 2;
-		int width = backbuffer_size->x / columns;
+		int width = backbuffer_size.x / columns;
 		int i;
 		for (i = 0; i < columns; ++i)
 		{
 			data[i].raster_area_mins[0].x = i * width;
-			data[i].raster_area_maxs[0].x = i == columns - 1 ? backbuffer_size->x - 1 : i * width + width - 1;
+			data[i].raster_area_maxs[0].x = i == columns - 1 ? backbuffer_size.x - 1 : i * width + width - 1;
 			data[i].raster_area_mins[0].y = 0;
-			data[i].raster_area_maxs[0].y = backbuffer_size->y / 2 - 1;
+			data[i].raster_area_maxs[0].y = backbuffer_size.y / 2 - 1;
 		}
 
 		columns = (int)core_count - columns;
 		for (int j = 0; i < (int)core_count; ++i, ++j)
 		{
 			data[i].raster_area_mins[0].x = j * width;
-			data[i].raster_area_maxs[0].x = i == (int)core_count - 1 ? backbuffer_size->x - 1 : j * width + width - 1;
-			data[i].raster_area_mins[0].y = backbuffer_size->y / 2;
-			data[i].raster_area_maxs[0].y = backbuffer_size->y - 1;
+			data[i].raster_area_maxs[0].x = i == (int)core_count - 1 ? backbuffer_size.x - 1 : j * width + width - 1;
+			data[i].raster_area_mins[0].y = backbuffer_size.y / 2;
+			data[i].raster_area_maxs[0].y = backbuffer_size.y - 1;
 		}
 	}
 }
@@ -723,9 +701,9 @@ void rasterize_thread(void *data)
 	{
 		for (unsigned int i = 0; i < td->buffer_count; ++i)
 		{
-			rasterizer_rasterize(td->render_target, td->depth_buffer, &td->target_size, &td->raster_area_mins[area], &td->raster_area_maxs[area],
+			rasterizer_rasterize(td->render_target, td->depth_buffer, td->target_size, td->raster_area_mins[area], td->raster_area_maxs[area],
 				&td->vert_bufs[i][0], &td->uv_bufs[i][0], &td->ind_bufs[i][0], td->ind_counts[i],
-				td->textures[i], td->texture_sizes[i]);
+				td->textures[i], *(td->texture_sizes[i]));
 		}
 	}
 }

@@ -8,6 +8,6 @@ struct texture *texture_create(const char *file_name);
 
 void texture_destroy(struct texture **texture);
 
-void texture_get_info(struct texture *texture, uint32_t **buf, struct vec2_int **size);
+void texture_get_info(struct texture &texture, uint32_t **buf, struct vec2_int **size);
 
 #endif /* RPLNN_TEXTURE_H */

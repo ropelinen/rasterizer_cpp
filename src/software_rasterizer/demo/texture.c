@@ -50,12 +50,11 @@ void texture_destroy(struct texture **texture)
 	*texture = NULL;
 }
 
-void texture_get_info(struct texture *texture, uint32_t **buf, struct vec2_int **size)
+void texture_get_info(struct texture &texture, uint32_t **buf, struct vec2_int **size)
 {
-	assert(texture && "texture_get_info: texture is NULL");
 	assert(buf && "texture_get_info: buf is NULL");
 	assert(size && "texture_get_info: size is NULL");
 
-	*buf = texture->buf;
-	*size = &(texture->size);
+	*buf = texture.buf;
+	*size = &(texture.size);
 }

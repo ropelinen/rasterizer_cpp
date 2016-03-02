@@ -8,8 +8,8 @@ struct font *font_create(const char *file_name);
 
 void font_destroy(struct font **font);
 
-void font_set_line_height(struct font *font, float line_height);
+void font_set_line_height(struct font &font, float line_height);
 
-void font_render_text(void *render_target, const struct vec2_int *target_size, struct font *font, const char *text, const struct vec2_int *pos, const uint32_t text_color);
+void font_render_text(void *render_target, const struct vec2_int &target_size, const struct font &font, const char *text, const struct vec2_int &pos, const uint32_t text_color);
 
 #endif /* RPLNN_FONT_H */

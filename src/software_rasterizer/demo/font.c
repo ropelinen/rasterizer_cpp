@@ -55,30 +55,25 @@ void font_destroy(struct font **font)
 	*font = NULL;
 }
 
-void font_set_line_height(struct font *font, float line_height)
+void font_set_line_height(struct font &font, float line_height)
 {
-	assert(font && "font_set_line_height: font is NULL");
-
 	float scale;
 	int ascent, descent;
 
-	scale = stbtt_ScaleForPixelHeight(&(font->font_info), line_height);
-	stbtt_GetFontVMetrics(&(font->font_info), &ascent, &descent, &(font->line_gap));
-	font->ascent = (int)(ascent * scale);
-	font->descent = (int)(descent * scale);
-	font->scale = scale;
+	scale = stbtt_ScaleForPixelHeight(&(font.font_info), line_height);
+	stbtt_GetFontVMetrics(&(font.font_info), &ascent, &descent, &(font.line_gap));
+	font.ascent = (int)(ascent * scale);
+	font.descent = (int)(descent * scale);
+	font.scale = scale;
 }
 
-void font_render_text(void *render_target, const struct vec2_int *target_size, struct font *font, const char *text, const struct vec2_int *pos, const uint32_t text_color)
+void font_render_text(void *render_target, const struct vec2_int &target_size, const struct font &font, const char *text, const struct vec2_int &pos, const uint32_t text_color)
 {
 	assert(render_target && "font_render_text: render_target is NULL");
-	assert(target_size && "font_render_text: target_size is NULL");
-	assert(font && "font_render_text: font is NULL");
 	assert(text && "font_render_text: text is NULL");
-	assert(pos && "font_render_text: pos is NULL");
 
-	stbtt_fontinfo *font_info = &(font->font_info);
-	float scale = font->scale;
+	const stbtt_fontinfo *font_info = &(font.font_info);
+	float scale = font.scale;
 
 	int x = 0;
 	unsigned int text_len = (unsigned int)strlen(text);
@@ -89,7 +84,7 @@ void font_render_text(void *render_target, const struct vec2_int *target_size, s
 		int char_y0, char_y1;
 		stbtt_GetCodepointBitmapBox(font_info, text[i], scale, scale, &char_x0, &char_y0, &char_x1, &char_y1);
 
-		int y = font->ascent + char_y0;
+		int y = font.ascent + char_y0;
 		int char_width, char_height;
 		int x_offset, y_offset;
 		/* NOTE: This allocates memory, should do something about that */
@@ -97,18 +92,18 @@ void font_render_text(void *render_target, const struct vec2_int *target_size, s
 
 		for (int char_y = 0; char_y < char_height; ++char_y)
 		{
-			int line = target_size->y - (pos->y + char_y + y);
-			if (line >= target_size->y)
+			int line = target_size.y - (pos.y + char_y + y);
+			if (line >= target_size.y)
 				break;
 
 			for (int char_x = 0; char_x < char_width; ++char_x)
 			{
-				int pos_x = pos->x + char_x + x;
-				if (pos_x >= target_size->x)
+				int pos_x = pos.x + char_x + x;
+				if (pos_x >= target_size.x)
 					break;
 
 				uint8_t alpha = bitmap[char_y * char_width + char_x];	
-				uint32_t *pixel = &((uint32_t*)render_target)[line * target_size->x + pos_x];
+				uint32_t *pixel = &((uint32_t*)render_target)[line * target_size.x + pos_x];
 				/* This needs to be calculated using a macro or something as this depends on the target format */
 				/* Colors of the original pixel */
 				uint32_t s_r = (*pixel >> 16) & 0xFF;
@@ -143,7 +138,7 @@ void font_render_text(void *render_target, const struct vec2_int *target_size, s
 		int kerning = stbtt_GetCodepointKernAdvance(font_info, text[i], text[i + 1]);
 		x = x + (int)(kerning * scale);
 
-		if (x >= target_size->x)
+		if (x >= target_size.x)
 			break;
 	}
 }

@@ -89,11 +89,8 @@ void error_popup(const char *msg, const bool kill_program)
 		ExitProcess(~(UINT)0);
 }
 
-void create_window(struct api_info *api_info, HINSTANCE hInstance, struct renderer_info *renderer_info)
+void create_window(struct api_info &api_info, HINSTANCE hInstance, struct renderer_info &renderer_info)
 {
-	assert(api_info && "create_window: api_info is NULL");
-	assert(renderer_info && "create_window: renderer_info is NULL");
-
 	WNDCLASSEX wc;
 
 	memset(&wc, 0, sizeof(wc));
@@ -111,15 +108,15 @@ void create_window(struct api_info *api_info, HINSTANCE hInstance, struct render
 	RECT client_size;
 	client_size.left = 0; 
 	client_size.top = 0;
-	client_size.right = (LONG)renderer_info->width;
-	client_size.bottom = (LONG)renderer_info->height;
+	client_size.right = (LONG)renderer_info.width;
+	client_size.bottom = (LONG)renderer_info.height;
 
 	DWORD style = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
 	DWORD exStyle = 0;
 	if (!AdjustWindowRectEx(&client_size, style, false, exStyle))
 		error_popup("Failed to get correct window size", true);
 
-	api_info->hwnd = CreateWindowEx(
+	api_info.hwnd = CreateWindowEx(
 		exStyle,
 		class_name,
 		window_name,
@@ -129,21 +126,19 @@ void create_window(struct api_info *api_info, HINSTANCE hInstance, struct render
 		NULL,
 		NULL,
 		hInstance,
-		renderer_info); /* Need to pass stuff here, at least bitmap info for GDI */
+		&renderer_info); /* Need to pass stuff here, at least bitmap info for GDI */
 
-	if (api_info->hwnd == NULL)
+	if (api_info.hwnd == NULL)
 		error_popup("Failed to create a window", true);
 
 	/* If I need to access api_info in WindowProc's WM_CREATE handling move this there. */
-	SetWindowLongPtr(api_info->hwnd, GWLP_USERDATA, (LONG_PTR)api_info);
+	SetWindowLongPtr(api_info.hwnd, GWLP_USERDATA, (LONG_PTR)&api_info);
 }
 
-void renderer_initialize(struct renderer_info *info, unsigned int width, unsigned int height)
+void renderer_initialize(struct renderer_info &info, const unsigned int width, const unsigned int height)
 {
-	assert(info && "renderer_initialize: info is NULL");
-
 #if RPLNN_RENDERER == RPLNN_RENDERER_GDI
-	BITMAPINFO *bitmapinfo = &(info->bitmapinfo);
+	BITMAPINFO *bitmapinfo = &(info.bitmapinfo);
 	memset(bitmapinfo, 0, sizeof(BITMAPINFO));
 	bitmapinfo->bmiHeader.biSize = sizeof(BITMAPINFO);
 	bitmapinfo->bmiHeader.biWidth = (LONG)width;
@@ -152,21 +147,19 @@ void renderer_initialize(struct renderer_info *info, unsigned int width, unsigne
 	bitmapinfo->bmiHeader.biBitCount = 32;
 	bitmapinfo->bmiHeader.biCompression = BI_RGB;
 
-	info->width = width;
-	info->height = height;
+	info.width = width;
+	info.height = height;
 
 	const size_t buffer_size = width * height * 4;
-	info->buffer = malloc(buffer_size);
-	memset(info->buffer, 0, buffer_size);
+	info.buffer = malloc(buffer_size);
+	memset(info.buffer, 0, buffer_size);
 	
 	renderer_clear_backbuffer(info, RGB_RED);
 #endif
 }
 
-void renderer_destroy(struct renderer_info *info)
+void renderer_destroy(struct renderer_info &info)
 {
-	assert(info && "renderer_destroy: info is NULL");
-
 	free(get_backbuffer(info));
 }
 
@@ -187,58 +180,48 @@ bool event_loop(void)
 	return TRUE;
 }
 
-void finish_drawing(struct api_info *api_info)
+void finish_drawing(struct api_info &api_info)
 {
-	assert(api_info && "finish_drawing: api_info is NULL");
-
 #if RPLNN_RENDERER == RPLNN_RENDERER_GDI
-	RedrawWindow(api_info->hwnd, NULL, NULL, RDW_INTERNALPAINT | RDW_INVALIDATE);
+	RedrawWindow(api_info.hwnd, NULL, NULL, RDW_INTERNALPAINT | RDW_INVALIDATE);
 #endif
 }
 
-void *get_backbuffer(struct renderer_info *info)
+void *get_backbuffer(struct renderer_info &info)
 {
-	assert(info && "get_backbuffer: info is NULL");
-
 #if RPLNN_RENDERER == RPLNN_RENDERER_GDI
-	return info->buffer;
+	return info.buffer;
 #else
 	return NULL;
 #endif
 }
 
-uint32_t get_blit_duration_ms(struct renderer_info *info)
+uint32_t get_blit_duration_ms(const struct renderer_info &info)
 {
-	assert(info && "get_blit_duration_ms: info is NULL");
-
 #if RPLNN_RENDERER == RPLNN_RENDERER_GDI
-	return info->blit_duration_mus;
+	return info.blit_duration_mus;
 #else
 	return 0;
 #endif
 }
 
-struct vec2_int get_backbuffer_size(struct renderer_info *info)
+struct vec2_int get_backbuffer_size(const struct renderer_info &info)
 {
-	assert(info && "get_backbuffer_size: info is NULL");
-
 #if RPLNN_RENDERER == RPLNN_RENDERER_GDI
 	struct vec2_int size;
-	size.x = (int32_t)info->width; 
-	size.y = (int32_t)info->height;
+	size.x = (int32_t)info.width; 
+	size.y = (int32_t)info.height;
 #else
 	struct vec2_int size = { .x = -1. .y = -1 };
 #endif
 	return size;
 }
 
-void renderer_clear_backbuffer(struct renderer_info *info, const uint32_t color)
+void renderer_clear_backbuffer(struct renderer_info &info, const uint32_t color)
 {
-	assert(info && "renderer_clear_backbuffer: info is NULL");
-
 #if RPLNN_RENDERER == RPLNN_RENDERER_GDI
-	for (unsigned i = 0; i < info->width * info->height; ++i)
-		((uint32_t *)info->buffer)[i] = color;
+	for (unsigned i = 0; i < info.width * info.height; ++i)
+		((uint32_t *)info.buffer)[i] = color;
 #endif
 }
 
@@ -431,34 +414,33 @@ void thread_destroy(struct thread **thread)
 	*thread = NULL;
 }
 
-bool thread_set_task(struct thread *thread, void(*func)(void *), void *data)
+bool thread_set_task(struct thread &thread, void(*func)(void *), void *data)
 {
-	assert(thread && "thread_set_task: thread is NULL");
 	assert(func && "thread_set_task: func is NULL");
 
 	bool success = true;
-	EnterCriticalSection(&thread->data_critical_section);
-	assert(!thread->quit && "thread_set_task: thread is quitting/has quit");
-	if (thread->func || thread->quit)
+	EnterCriticalSection(&thread.data_critical_section);
+	assert(!thread.quit && "thread_set_task: thread is quitting/has quit");
+	if (thread.func || thread.quit)
 	{
 		success = false;
 	}
 	else
 	{
-		thread->func = func;
-		thread->data = data;
+		thread.func = func;
+		thread.data = data;
 	}
-	LeaveCriticalSection(&thread->data_critical_section);
+	LeaveCriticalSection(&thread.data_critical_section);
 
 	if (success)
 	{
-		if (!ReleaseSemaphore(thread->sleep_semaphore, 1, NULL))
+		if (!ReleaseSemaphore(thread.sleep_semaphore, 1, NULL))
 		{
 			assert(false && "thread_set_task: Failed to release the sleep semaphore, the task won't be run");
-			EnterCriticalSection(&thread->data_critical_section);
-			thread->func = NULL;
-			thread->data = NULL;
-			LeaveCriticalSection(&thread->data_critical_section);
+			EnterCriticalSection(&thread.data_critical_section);
+			thread.func = NULL;
+			thread.data = NULL;
+			LeaveCriticalSection(&thread.data_critical_section);
 			return false;
 		}
 	}
@@ -466,30 +448,26 @@ bool thread_set_task(struct thread *thread, void(*func)(void *), void *data)
 	return success;
 }
 
-bool thread_has_task(struct thread *thread)
+bool thread_has_task(struct thread &thread)
 {
-	assert(thread && "thread_in_task: thread is NULL");
-
 	bool has_task;
-	EnterCriticalSection(&thread->data_critical_section);
-	has_task = thread->func != NULL;
-	LeaveCriticalSection(&thread->data_critical_section);
+	EnterCriticalSection(&thread.data_critical_section);
+	has_task = thread.func != NULL;
+	LeaveCriticalSection(&thread.data_critical_section);
 
 	return has_task;
 }
 
-void thread_wait_for_task(struct thread *thread)
+void thread_wait_for_task(struct thread &thread)
 {
-	assert(thread && "thread_wait_for_task: thread is NULL");
-
 	if (!thread_has_task(thread))
 	{
 		/* If the thread doesn't have a task function set we can just get out here */
 		return;
 	}
 
-	EnterCriticalSection(&thread->doing_task_critical_section);
-	LeaveCriticalSection(&thread->doing_task_critical_section);
+	EnterCriticalSection(&thread.doing_task_critical_section);
+	LeaveCriticalSection(&thread.doing_task_critical_section);
 
 	/* If this function is called immediately after setting the task there is a small chance that
 	 * the thread has not got far enough to enter doing_task_critical_section.
@@ -530,18 +508,16 @@ static const uint8_t keycode_table[KEY_COUNT] =
 	0x5A  /* Z */
 };
 
-uint8_t get_virtual_key_code(enum keycodes keycode)
+uint8_t get_virtual_key_code(const enum keycodes keycode)
 {
 	assert(keycode < sizeof(keycode_table) / sizeof(keycode_table[0]) && "get_virtual_key_code: invalid keycode");
 	return keycode_table[keycode];
 }
 
-bool is_key_down(struct api_info *api_info, enum keycodes keycode)
+bool is_key_down(const struct api_info &api_info, const enum keycodes keycode)
 {
-	assert(api_info && "is_key_down: api_info is NULL");
-
 	uint8_t vkc = get_virtual_key_code(keycode);
-	return (api_info->key_states[vkc / KEY_STATE_TYPE_BITS] & (1 << (vkc % KEY_STATE_TYPE_BITS))) != 0;
+	return (api_info.key_states[vkc / KEY_STATE_TYPE_BITS] & (1 << (vkc % KEY_STATE_TYPE_BITS))) != 0;
 }
 
 static LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -613,12 +589,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	memset(api_info.key_states, 0, sizeof(api_info.key_states));
 	api_info.renderer_info = &renderer_info;
 
-	renderer_initialize(&renderer_info, 1280, 720);
-	create_window(&api_info, hInstance, &renderer_info);
+	renderer_initialize(renderer_info, 1280, 720);
+	create_window(api_info, hInstance, renderer_info);
 
-	main(&api_info, &renderer_info);
+	main(api_info, renderer_info);
 
-	renderer_destroy(&renderer_info);
+	renderer_destroy(renderer_info);
 
 	return TRUE;
 }

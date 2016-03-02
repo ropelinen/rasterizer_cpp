@@ -41,7 +41,7 @@
 
 #ifdef USE_SIMD
 /* From http://stackoverflow.com/questions/10500766/sse-multiplication-of-4-32-bit-integers */
-__m128i mul_epi32(const __m128i a, const __m128i b)
+__m128i mul_epi32(const __m128i &a, const __m128i &b)
 {
 	__m128i tmp1 = _mm_mul_epu32(a, b); /* mul 2,0*/
 	__m128i tmp2 = _mm_mul_epu32(_mm_srli_si128(a, 4), _mm_srli_si128(b, 4)); /* mul 3,1 */
@@ -52,23 +52,16 @@ __m128i mul_epi32(const __m128i a, const __m128i b)
 /* Taken straight from https://fgiesen.wordpress.com/2013/02/08/triangle-rasterization-in-practice/ 
  * Returns the signed A*2 of the triangle formed by the three points. 
  * The sign is positive with CCW tri in a coordinate system with up-right positive axes. */
-int32_t winding_2d(const struct vec2_int *p1, const struct vec2_int *p2, const struct vec2_int *p3)
+int32_t winding_2d(const struct vec2_int &p1, const struct vec2_int &p2, const struct vec2_int &p3)
 {
-	assert(p1 && "winding_2d: p1 is NULL");
-	assert(p2 && "winding_2d: p2 is NULL");
-	assert(p3 && "winding_2d: p3 is NULL");
-
 	const int32_t sub_multip = 1 << SUB_BITS;
-	return MUL_FIXED(p1->y - p2->y, p3->x, sub_multip) + MUL_FIXED(p2->x - p1->x, p3->y, sub_multip) + (MUL_FIXED(p1->x, p2->y, sub_multip) - MUL_FIXED(p1->y, p2->x, sub_multip));
+	return MUL_FIXED(p1.y - p2.y, p3.x, sub_multip) + MUL_FIXED(p2.x - p1.x, p3.y, sub_multip) + (MUL_FIXED(p1.x, p2.y, sub_multip) - MUL_FIXED(p1.y, p2.x, sub_multip));
 }
 
-bool is_top_or_left(const struct vec2_int *p1, const struct vec2_int *p2)
+bool is_top_or_left(const struct vec2_int &p1, const struct vec2_int &p2)
 {
-	assert(p1 && "is_top_or_left: p1 is NULL");
-	assert(p2 && "is_top_or_left: p2 is NULL");
-	
 	/* Left || top */
-	return ((p2->y < p1->y) || (p2->x < p1->x && p1->y == p2->y));
+	return ((p2.y < p1.y) || (p2.x < p1.x && p1.y == p2.y));
 }
 
 #define OC_INSIDE 0 // 0000
@@ -77,30 +70,25 @@ bool is_top_or_left(const struct vec2_int *p1, const struct vec2_int *p2)
 #define OC_BOTTOM 4 // 0100
 #define OC_TOP 8    // 1000
 
-uint32_t compute_out_code(struct vec2_int *p, const int32_t minx, const int32_t miny, const int32_t maxx, const int32_t maxy)
+uint32_t compute_out_code(const struct vec2_int &p, const int32_t minx, const int32_t miny, const int32_t maxx, const int32_t maxy)
 {
-	assert(p && "compute_out_code: p is NULL");
-
 	uint32_t code = OC_INSIDE; 
 
-	if (p->x < minx)           // to the left of clip window
+	if (p.x < minx)           // to the left of clip window
 		code |= OC_LEFT;
-	else if (p->x > maxx)      // to the right of clip window
+	else if (p.x > maxx)      // to the right of clip window
 		code |= OC_RIGHT;
-	if (p->y < miny)           // below the clip window
+	if (p.y < miny)           // below the clip window
 		code |= OC_BOTTOM;
-	else if (p->y > maxy)      // above the clip window
+	else if (p.y > maxy)      // above the clip window
 		code |= OC_TOP;
 
 	return code;
 }
 
 /* Get guard-band intersection point */
-struct vec2_int get_gb_intersection_point(const unsigned int oc, const struct vec2_int *p1, const struct vec2_int *p2)
+struct vec2_int get_gb_intersection_point(const unsigned int oc, const struct vec2_int &p1, const struct vec2_int &p2)
 {
-	assert(p1 && "get_gb_intersection_point: p1 is NULL");
-	assert(p2 && "get_gb_intersection_point: p2 is NULL");
-
 	struct vec2_int result = { 0, 0 };
 
 	/* When doing fp / you would normally (a << frac_bits) / b but the multiply does that for us already. */
@@ -109,18 +97,18 @@ struct vec2_int get_gb_intersection_point(const unsigned int oc, const struct ve
 	{
 	case OC_LEFT:
 		result.x = GB_LEFT;
-		result.y = p1->y + ((GB_LEFT - p1->x) * (p2->y - p1->y)) / (p2->x - p1->x);
+		result.y = p1.y + ((GB_LEFT - p1.x) * (p2.y - p1.y)) / (p2.x - p1.x);
 		break;
 	case OC_RIGHT:
 		result.x = GB_RIGHT;
-		result.y = p1->y + ((GB_RIGHT - p1->x) * (p2->y - p1->y)) / (p2->x - p1->x);
+		result.y = p1.y + ((GB_RIGHT - p1.x) * (p2.y - p1.y)) / (p2.x - p1.x);
 		break;
 	case OC_BOTTOM:
-		result.x = p1->x + ((GB_BOTTOM - p1->y) * (p2->x - p1->x)) / (p2->y - p1->y);
+		result.x = p1.x + ((GB_BOTTOM - p1.y) * (p2.x - p1.x)) / (p2.y - p1.y);
 		result.y = GB_BOTTOM;
 		break;
 	case OC_TOP:
-		result.x = p1->x + ((GB_TOP - p1->y) * (p2->x - p1->x)) / (p2->y - p1->y);
+		result.x = p1.x + ((GB_TOP - p1.y) * (p2.x - p1.x)) / (p2.y - p1.y);
 		result.y = GB_TOP;
 		break;
 	default:
@@ -131,14 +119,13 @@ struct vec2_int get_gb_intersection_point(const unsigned int oc, const struct ve
 	return result;
 }
 
-void lerp_vert_attributes(const struct vec2_int* vec_arr, const float *z_arr, const float *w_arr, const struct vec2_float *uv_arr, unsigned int p0i, unsigned int p1i, 
-	const struct vec2_int *clip, float *out_clipz, float *out_clipw, struct vec2_float *out_clipuv)
+void lerp_vert_attributes(const struct vec2_int* vec_arr, const float *z_arr, const float *w_arr, const struct vec2_float *uv_arr, const unsigned int p0i, const unsigned int p1i, 
+	const struct vec2_int &clip, float *out_clipz, float *out_clipw, struct vec2_float *out_clipuv)
 {
 	assert(vec_arr && "lerp_vert_attributes: vec_arr is NULL");
 	assert(z_arr && "lerp_vert_attributes: z_arr is NULL");
 	assert(w_arr && "lerp_vert_attributes: w_arr is NULL");
 	assert(uv_arr && "lerp_vert_attributes: uv_arr is NULL");
-	assert(clip && "lerp_vert_attributes: clip is NULL");
 	assert(out_clipz && "lerp_vert_attributes: out_clipz is NULL");
 	assert(out_clipw && "lerp_vert_attributes: out_clipw is NULL");
 	assert(out_clipuv && "lerp_vert_attributes: out_clipuv is NULL");
@@ -149,8 +136,8 @@ void lerp_vert_attributes(const struct vec2_int* vec_arr, const float *z_arr, co
 	uint32_t temp_x = (uint32_t)(vec_arr[p1i].x - vec_arr[p0i].x);
 	uint32_t temp_y = (uint32_t)(vec_arr[p1i].y - vec_arr[p0i].y);
 	uint32_t len_org = MUL_FIXED(temp_x, temp_x, sub_multip) + MUL_FIXED(temp_y, temp_y, sub_multip);
-	temp_x = (uint32_t)(clip->x - vec_arr[p0i].x);
-	temp_y = (uint32_t)(clip->y - vec_arr[p0i].y);
+	temp_x = (uint32_t)(clip.x - vec_arr[p0i].x);
+	temp_y = (uint32_t)(clip.y - vec_arr[p0i].y);
 	uint32_t len_int = MUL_FIXED(temp_x, temp_x, sub_multip) + MUL_FIXED(temp_y, temp_y, sub_multip);
 	float weight = (float)len_int / (float)len_org;
 	weight = sqrtf(weight);
@@ -182,7 +169,7 @@ void lerp_vert_attributes(const struct vec2_int* vec_arr, const float *z_arr, co
  * false if it/they can be discarded. */
 bool clip(struct vec2_int *work_poly, float *work_z, float *work_w, struct vec2_float *work_uv, 
 	unsigned int *work_vert_count, unsigned int *work_index_count, unsigned int *work_poly_indices,
-	const struct vec2_int *target_min, const struct vec2_int *target_max)
+	const struct vec2_int &target_min, const struct vec2_int &target_max)
 {
 	assert(work_poly && "clip: work_poly is NULL");
 	assert(work_z && "clip: work_z is NULL");
@@ -191,14 +178,12 @@ bool clip(struct vec2_int *work_poly, float *work_z, float *work_w, struct vec2_
 	assert(work_vert_count && "clip: work_vert_count is NULL");
 	assert(work_index_count && "clip: work_index_count is NULL");
 	assert(work_poly_indices && "clip: work_poly_indices is NULL");
-	assert(target_min && "clip: target_min is NULL");
-	assert(target_max && "clip: target_max is NULL");
-	assert(target_min->x < target_max->x && target_min->y < target_max->y && "clip: target_min must be smaller than target_max");
+	assert(target_min.x < target_max.x && target_min.y < target_max.y && "clip: target_min must be smaller than target_max");
 
 	/* Test view port x, y clipping */
-	uint32_t oc0 = compute_out_code(&work_poly[0], target_min->x, target_min->y, target_max->x, target_max->y);
-	uint32_t oc1 = compute_out_code(&work_poly[1], target_min->x, target_min->y, target_max->x, target_max->y);
-	uint32_t oc2 = compute_out_code(&work_poly[2], target_min->x, target_min->y, target_max->x, target_max->y);
+	uint32_t oc0 = compute_out_code(work_poly[0], target_min.x, target_min.y, target_max.x, target_max.y);
+	uint32_t oc1 = compute_out_code(work_poly[1], target_min.x, target_min.y, target_max.x, target_max.y);
+	uint32_t oc2 = compute_out_code(work_poly[2], target_min.x, target_min.y, target_max.x, target_max.y);
 	if ((oc0 | oc1 | oc2) == 0)
 	{
 		/* Whole poly inside the view, trivially accept */
@@ -218,9 +203,9 @@ bool clip(struct vec2_int *work_poly, float *work_z, float *work_w, struct vec2_
 		const int32_t maxx = TO_FIXED(GB_MAX, sub_multip);
 		const int32_t maxy = TO_FIXED(GB_MAX, sub_multip);
 
-		oc0 = compute_out_code(&work_poly[0], minx, miny, maxx, maxy);
-		oc1 = compute_out_code(&work_poly[1], minx, miny, maxx, maxy);
-		oc2 = compute_out_code(&work_poly[2], minx, miny, maxx, maxy);
+		oc0 = compute_out_code(work_poly[0], minx, miny, maxx, maxy);
+		oc1 = compute_out_code(work_poly[1], minx, miny, maxx, maxy);
+		oc2 = compute_out_code(work_poly[2], minx, miny, maxx, maxy);
 
 		if ((oc0 | oc1 | oc2) == 0)
 		{
@@ -259,9 +244,9 @@ bool clip(struct vec2_int *work_poly, float *work_z, float *work_w, struct vec2_
 				clipped_index_count = 0;
 				for (unsigned int vert_index = 0; vert_index < *work_index_count - 1; ++vert_index)
 				{
-					if ((compute_out_code(&work_poly[work_poly_indices[vert_index]], minx, miny, maxx, maxy) & oc) == 0)
+					if ((compute_out_code(work_poly[work_poly_indices[vert_index]], minx, miny, maxx, maxy) & oc) == 0)
 					{
-						if ((compute_out_code(&work_poly[work_poly_indices[vert_index + 1]], minx, miny, maxx, maxy) & oc) == 0)
+						if ((compute_out_code(work_poly[work_poly_indices[vert_index + 1]], minx, miny, maxx, maxy) & oc) == 0)
 						{
 							/* both inside, add second */
 							clipped_poly[clipped_vert_count] = work_poly[work_poly_indices[vert_index + 1]];
@@ -275,11 +260,11 @@ bool clip(struct vec2_int *work_poly, float *work_z, float *work_w, struct vec2_
 						else
 						{
 							/* second out, add intersection */
-							clipped_poly[clipped_vert_count] = get_gb_intersection_point(oc, &work_poly[work_poly_indices[vert_index]], &work_poly[work_poly_indices[vert_index + 1]]);
+							clipped_poly[clipped_vert_count] = get_gb_intersection_point(oc, work_poly[work_poly_indices[vert_index]], work_poly[work_poly_indices[vert_index + 1]]);
 							clipped_poly_indices[clipped_index_count] = clipped_vert_count;
 
 							lerp_vert_attributes(&work_poly[0], &work_z[0], &work_w[0], &work_uv[0], work_poly_indices[vert_index], work_poly_indices[vert_index + 1]
-								, &clipped_poly[clipped_vert_count], &clipped_z[clipped_vert_count], &clipped_w[clipped_vert_count], &clipped_uv[clipped_vert_count]);
+								, clipped_poly[clipped_vert_count], &clipped_z[clipped_vert_count], &clipped_w[clipped_vert_count], &clipped_uv[clipped_vert_count]);
 
 							++clipped_vert_count;
 							++clipped_index_count;
@@ -287,14 +272,14 @@ bool clip(struct vec2_int *work_poly, float *work_z, float *work_w, struct vec2_
 					}
 					else
 					{
-						if ((compute_out_code(&work_poly[work_poly_indices[vert_index + 1]], minx, miny, maxx, maxy) & oc) == 0)
+						if ((compute_out_code(work_poly[work_poly_indices[vert_index + 1]], minx, miny, maxx, maxy) & oc) == 0)
 						{
 							/* second in, add intersection and second */
-							clipped_poly[clipped_vert_count] = get_gb_intersection_point(oc, &work_poly[work_poly_indices[vert_index + 1]], &work_poly[work_poly_indices[vert_index]]);
+							clipped_poly[clipped_vert_count] = get_gb_intersection_point(oc, work_poly[work_poly_indices[vert_index + 1]], work_poly[work_poly_indices[vert_index]]);
 							clipped_poly_indices[clipped_index_count] = clipped_vert_count;
 
 							lerp_vert_attributes(&work_poly[0], &work_z[0], &work_w[0], &work_uv[0], work_poly_indices[vert_index + 1], work_poly_indices[vert_index]
-								, &clipped_poly[clipped_vert_count], &clipped_z[clipped_vert_count], &clipped_w[clipped_vert_count], &clipped_uv[clipped_vert_count]);
+								, clipped_poly[clipped_vert_count], &clipped_z[clipped_vert_count], &clipped_w[clipped_vert_count], &clipped_uv[clipped_vert_count]);
 
 							++clipped_vert_count;
 							++clipped_index_count;
@@ -353,38 +338,33 @@ bool clip(struct vec2_int *work_poly, float *work_z, float *work_w, struct vec2_
 	}
 }
 
-void rasterizer_rasterize(uint32_t *render_target, uint32_t *depth_buf, const struct vec2_int *target_size, const struct vec2_int *rasterize_area_min, const struct vec2_int *rasterize_area_max,
+void rasterizer_rasterize(uint32_t *render_target, uint32_t *depth_buf, const struct vec2_int &target_size, const struct vec2_int &rasterize_area_min, const struct vec2_int &rasterize_area_max,
 	const struct vec4_float *vert_buf, const struct vec2_float *uv_buf, const unsigned int *ind_buf, const unsigned int index_count, 
-	const uint32_t *texture, const struct vec2_int *texture_size)
+	const uint32_t *texture, const struct vec2_int &texture_size)
 {
 	assert(render_target && "rasterizer_rasterize: render_target is NULL");
 	assert(depth_buf && "rasterizer_rasterize: depth_buf is NULL");
-	assert(target_size && "rasterizer_rasterize: target_size is NULL");
-	assert(rasterize_area_min && "rasterizer_rasterize: rasterize_area_min is NULL");
-	assert(rasterize_area_max && "rasterizer_rasterize: rasterize_area_max is NULL");
 	assert(vert_buf && "rasterizer_rasterize: vert_buf is NULL");
 	assert(uv_buf && "rasterizer_rasterize: uv_buf is NULL");
 	assert(ind_buf && "rasterizer_rasterize: ind_buf is NULL");
-	assert(texture && "rasterizer_rasterize: texture is NULL");
-	assert(texture_size && "rasterizer_rasterize: texture_size is NULL");
 	assert(index_count % 3 == 0 && "rasterizer_rasterize: index count is not valid");
 	assert(SUB_BITS == 4 && "rasterizer_rasterize: SUB_BITS has changed, check the assert below.");
-	assert(target_size->x <= (2 * -(GB_MIN)) && target_size->y <= (2 * -(GB_MIN)) && "rasterizer_rasterize: render target is too large");
-	assert(rasterize_area_min->x >= 0 && rasterize_area_min->y >= 0 && "rasterizer_rasterize: invalid rasterize_area_min");
+	assert(target_size.x <= (2 * -(GB_MIN)) && target_size.y <= (2 * -(GB_MIN)) && "rasterizer_rasterize: render target is too large");
+	assert(rasterize_area_min.x >= 0 && rasterize_area_min.y >= 0 && "rasterizer_rasterize: invalid rasterize_area_min");
 #ifndef USE_TILES
-	assert(rasterize_area_max->x < target_size->x && rasterize_area_max->y < target_size->y && "rasterizer_rasterize: invalid rasterize_are_max");
+	assert(rasterize_area_max.x < target_size.x && rasterize_area_max.y < target_size.y && "rasterizer_rasterize: invalid rasterize_are_max");
 #endif
-	assert(rasterize_area_min->x < rasterize_area_max->x && rasterize_area_min->y < rasterize_area_max->y && "rasterizer_rasterize: rasterize_area_min must be smaller than rasterize_area_max");
+	assert(rasterize_area_min.x < rasterize_area_max.x && rasterize_area_min.y < rasterize_area_max.y && "rasterizer_rasterize: rasterize_area_min must be smaller than rasterize_area_max");
 #ifdef USE_SIMD
-	assert(rasterize_area_min->x % 2 == 0 && "rasterizer_rasterize: rasterize_area_min must be even");
-	assert(rasterize_area_min->y % 2 == 0 && "rasterizer_rasterize: rasterize_area_min must be even");
-	assert(rasterize_area_max->x % 2 == 1 && "rasterizer_rasterize: rasterize_area_max must be odd");
-	assert(rasterize_area_max->y % 2 == 1 && "rasterizer_rasterize: rasterize_area_max must be odd");
+	assert(rasterize_area_min.x % 2 == 0 && "rasterizer_rasterize: rasterize_area_min must be even");
+	assert(rasterize_area_min.y % 2 == 0 && "rasterizer_rasterize: rasterize_area_min must be even");
+	assert(rasterize_area_max.x % 2 == 1 && "rasterizer_rasterize: rasterize_area_max must be odd");
+	assert(rasterize_area_max.y % 2 == 1 && "rasterizer_rasterize: rasterize_area_max must be odd");
 #ifdef USE_TILES
-	assert(rasterize_area_min->x % TILE_SIZE == 0 && "rasterizer_rasterize: When using tiles rasterize areas must be aligned to tiles.");
-	assert(rasterize_area_min->y % TILE_SIZE == 0 && "rasterizer_rasterize: When using tiles rasterize areas must be aligned to tiles.");
-	assert(rasterize_area_max->x - rasterize_area_min->x == TILE_SIZE - 1 && "rasterizer_rasterize: When using tiles rasterize areas must be tile sized.");
-	assert(rasterize_area_max->y - rasterize_area_min->y == TILE_SIZE - 1 && "rasterizer_rasterize: When using tiles rasterize areas must be tile sized.");
+	assert(rasterize_area_min.x % TILE_SIZE == 0 && "rasterizer_rasterize: When using tiles rasterize areas must be aligned to tiles.");
+	assert(rasterize_area_min.y % TILE_SIZE == 0 && "rasterizer_rasterize: When using tiles rasterize areas must be aligned to tiles.");
+	assert(rasterize_area_max.x - rasterize_area_min.x == TILE_SIZE - 1 && "rasterizer_rasterize: When using tiles rasterize areas must be tile sized.");
+	assert(rasterize_area_max.y - rasterize_area_min.y == TILE_SIZE - 1 && "rasterizer_rasterize: When using tiles rasterize areas must be tile sized.");
 #endif
 #endif
 
@@ -411,15 +391,15 @@ void rasterizer_rasterize(uint32_t *render_target, uint32_t *depth_buf, const st
 			vert_buf[ind_buf[i + 2]].z < 0.0f || vert_buf[ind_buf[i + 2]].z > vert_buf[ind_buf[i + 2]].w)
 			continue;
 
-		const int32_t half_width = target_size->x / 2;
-		const int32_t half_height = target_size->y / 2;
+		const int32_t half_width = target_size.x / 2;
+		const int32_t half_height = target_size.y / 2;
 
 		struct vec2_int rast_min;
-		rast_min.x = TO_FIXED(rasterize_area_min->x - half_width, sub_multip);
-		rast_min.y = TO_FIXED(rasterize_area_min->y - half_height, sub_multip);
+		rast_min.x = TO_FIXED(rasterize_area_min.x - half_width, sub_multip);
+		rast_min.y = TO_FIXED(rasterize_area_min.y - half_height, sub_multip);
 		struct vec2_int rast_max;
-		rast_max.x = TO_FIXED(rasterize_area_max->x - half_width, sub_multip);
-		rast_max.y = TO_FIXED(rasterize_area_max->y - half_height, sub_multip);
+		rast_max.x = TO_FIXED(rasterize_area_max.x - half_width, sub_multip);
+		rast_max.y = TO_FIXED(rasterize_area_max.y - half_height, sub_multip);
 
 		work_poly[0].x = TO_FIXED(vert_buf[ind_buf[i]].x / vert_buf[ind_buf[i]].w * half_width, sub_multip);
 		work_poly[0].y = TO_FIXED(vert_buf[ind_buf[i]].y / vert_buf[ind_buf[i]].w * half_height, sub_multip);
@@ -442,7 +422,7 @@ void rasterizer_rasterize(uint32_t *render_target, uint32_t *depth_buf, const st
 		work_uv[2] = uv_buf[ind_buf[i + 2]];
 
 		if (!clip(&(work_poly[0]), &(work_z[0]), &(work_w[0]), &(work_uv[0]),
-			&work_vert_count, &work_index_count, &(work_poly_indices[0]), &rast_min, &rast_max))
+			&work_vert_count, &work_index_count, &(work_poly_indices[0]), rast_min, rast_max))
 			continue;
 
 		for (unsigned ind_i = 0; ind_i < work_index_count; ind_i += 3)
@@ -476,9 +456,9 @@ void rasterizer_rasterize(uint32_t *render_target, uint32_t *depth_buf, const st
 			 * The top or left bias causes the weights to get offset by 1 sub-pixel.
 			 * Could correct for that to get everything depending on the weights just right
 			 * but I think I can live with an error of 1 sub pixel (1/16 pixel currently). */
-			int32_t w0_row = winding_2d(&work_poly[i1], &work_poly[i2], &min) + (is_top_or_left(&work_poly[i1], &work_poly[i2]) ? 0 : -1);
-			int32_t w1_row = winding_2d(&work_poly[i2], &work_poly[i0], &min) + (is_top_or_left(&work_poly[i2], &work_poly[i0]) ? 0 : -1);
-			int32_t w2_row = winding_2d(&work_poly[i0], &work_poly[i1], &min) + (is_top_or_left(&work_poly[i0], &work_poly[i1]) ? 0 : -1);
+			int32_t w0_row = winding_2d(work_poly[i1], work_poly[i2], min) + (is_top_or_left(work_poly[i1], work_poly[i2]) ? 0 : -1);
+			int32_t w1_row = winding_2d(work_poly[i2], work_poly[i0], min) + (is_top_or_left(work_poly[i2], work_poly[i0]) ? 0 : -1);
+			int32_t w2_row = winding_2d(work_poly[i0], work_poly[i1], min) + (is_top_or_left(work_poly[i0], work_poly[i1]) ? 0 : -1);
 
 			/* Calculate steps */
 			int32_t step_x_01 = work_poly[i0].y - work_poly[i1].y;
@@ -503,32 +483,32 @@ void rasterizer_rasterize(uint32_t *render_target, uint32_t *depth_buf, const st
 			temp = work_uv[i2].y * work_w[i2] - work_uv[i0].y * work_w[i0];
 			const __m128 uv20y = _mm_set_ps(temp, temp, temp, temp);
 
-			temp = 1.0f / (float)winding_2d(&work_poly[i0], &work_poly[i1], &work_poly[i2]);
+			temp = 1.0f / (float)winding_2d(work_poly[i0], work_poly[i1], work_poly[i2]);
 			const __m128 one_over_double_area = _mm_set_ps(temp, temp, temp, temp);
 			temp = work_z[i1] - work_z[i0];
 			const __m128 z10 = _mm_set_ps(temp, temp, temp, temp);
 			temp = work_z[i2] - work_z[i0];
 			const __m128 z20 = _mm_set_ps(temp, temp, temp, temp);
 
-			temp = (float)(texture_size->x - 1);
+			temp = (float)(texture_size.x - 1);
 			const __m128 tex_coor_x_max = _mm_set_ps(temp, temp, temp, temp);
-			temp = (float)(texture_size->y - 1);
+			temp = (float)(texture_size.y - 1);
 			const __m128 tex_coor_y_max = _mm_set_ps(temp, temp, temp, temp);
 
 #ifdef USE_TILES
 			unsigned int pixel_index_row;
 			{
 				struct vec2_int padded_size;
-				rasterizer_get_padded_size(target_size, &padded_size);
+				rasterizer_get_padded_size(target_size, padded_size);
 				pixel_index_row = (unsigned)(TILE_SIZE * TILE_SIZE * 
-					((padded_size.x / TILE_SIZE) * (rasterize_area_min->y / TILE_SIZE) + (rasterize_area_min->x / TILE_SIZE))); /* tile index */
+					((padded_size.x / TILE_SIZE) * (rasterize_area_min.y / TILE_SIZE) + (rasterize_area_min.x / TILE_SIZE))); /* tile index */
 				pixel_index_row += TILE_SIZE 
-					* ((((min.y - half_pixel) / sub_multip) + half_height) - rasterize_area_min->y) /* y */
-					+ (((((min.x - half_pixel) / sub_multip) + half_width) - rasterize_area_min->x) * 2); /* x */
+					* ((((min.y - half_pixel) / sub_multip) + half_height) - rasterize_area_min.y) /* y */
+					+ (((((min.x - half_pixel) / sub_multip) + half_width) - rasterize_area_min.x) * 2); /* x */
 
 			}
 #else
-			unsigned int pixel_index_row = (unsigned)(target_size->x
+			unsigned int pixel_index_row = (unsigned)(target_size.x
 				* (((min.y - half_pixel) / sub_multip) + half_height) /* y */
 				+ ((((min.x - half_pixel) / sub_multip) + half_width) * 2)); /* x */
 #endif
@@ -599,7 +579,7 @@ void rasterizer_rasterize(uint32_t *render_target, uint32_t *depth_buf, const st
 									_mm_add_ps(_mm_mul_ps(w1_f, uv10y),
 										_mm_mul_ps(w2_f, uv20y))), interp_w);
 
-							__m128i texture_index = mul_epi32(_mm_cvttps_epi32(_mm_mul_ps(tex_coor_y_max, v)), _mm_set_epi32(texture_size->x, texture_size->x, texture_size->x, texture_size->x));
+							__m128i texture_index = mul_epi32(_mm_cvttps_epi32(_mm_mul_ps(tex_coor_y_max, v)), _mm_set_epi32(texture_size.x, texture_size.x, texture_size.x, texture_size.x));
 							texture_index = _mm_add_epi32(texture_index, _mm_cvttps_epi32(_mm_mul_ps(tex_coor_x_max, u)));
 
 							for (unsigned int pixel = 0; pixel < 4; ++pixel)
@@ -609,13 +589,13 @@ void rasterizer_rasterize(uint32_t *render_target, uint32_t *depth_buf, const st
 #ifdef USE_TILES
 #if RPLNN_BUILD_TYPE == RPLNN_DEBUG
 								struct vec2_int padded_size;
-								rasterizer_get_padded_size(target_size, &padded_size);
+								rasterizer_get_padded_size(target_size, padded_size);
 								assert(pixel_index_start + pixel < (unsigned)(padded_size.x * padded_size.y) && "rasterizer_rasterize: invalid pixel_index");
 #endif
 #else
-								assert(pixel_index_start + pixel < (unsigned)(target_size->x * target_size->y) && "rasterizer_rasterize: invalid pixel_index");
+								assert(pixel_index_start + pixel < (unsigned)(target_size.x * target_size.y) && "rasterizer_rasterize: invalid pixel_index");
 #endif
-								assert(((uint32_t *)&texture_index)[pixel] < (unsigned)(texture_size->x * texture_size->y) && "rasterizer_rasterize: invalid texture_index");
+								assert(((uint32_t *)&texture_index)[pixel] < (unsigned)(texture_size.x * texture_size.y) && "rasterizer_rasterize: invalid texture_index");
 
 								/* There must be a better way to do this */
 								depth_buf[pixel_index_start + pixel] = ((uint32_t *)&z)[pixel];
@@ -642,7 +622,7 @@ void rasterizer_rasterize(uint32_t *render_target, uint32_t *depth_buf, const st
 #ifdef USE_TILES
 				pixel_index_row += TILE_SIZE * 2;
 #else
-				pixel_index_row += target_size->x * 2;
+				pixel_index_row += target_size.x * 2;
 #endif
 			}
 #else
@@ -658,14 +638,14 @@ void rasterizer_rasterize(uint32_t *render_target, uint32_t *depth_buf, const st
 			float z10 = work_z[i1] - work_z[i0];
 			float z20 = work_z[i2] - work_z[i0];
 			
-			float one_over_double_area = 1.0f / (float)winding_2d(&work_poly[i0], &work_poly[i1], &work_poly[i2]);
+			float one_over_double_area = 1.0f / (float)winding_2d(work_poly[i0], work_poly[i1], work_poly[i2]);
 
-			const float tex_coor_x_max = (float)(texture_size->x - 1);
-			const float tex_coor_y_max = (float)(texture_size->y - 1);
+			const float tex_coor_x_max = (float)(texture_size.x - 1);
+			const float tex_coor_y_max = (float)(texture_size.y - 1);
 
-			unsigned int pixel_index_row = target_size->x
+			unsigned int pixel_index_row = (unsigned)(target_size.x
 				* (((min.y - half_pixel) / sub_multip) + half_height) /* y */
-				+ (((min.x - half_pixel) / sub_multip) + half_width); /* x */
+				+ (((min.x - half_pixel) / sub_multip) + half_width)); /* x */
 
 			/* Rasterize */
 			struct vec2_int point;
@@ -680,9 +660,9 @@ void rasterizer_rasterize(uint32_t *render_target, uint32_t *depth_buf, const st
 				{
 					if ((w0 | w1 | w2) >= 0)
 					{
-						float w0_f = min((float)w0 * one_over_double_area, 1.0f);
-						float w1_f = min((float)w1 * one_over_double_area, 1.0f);
-						float w2_f = max(1.0f - w0_f - w1_f, 0.0f);
+						float w0_f = std::min((float)w0 * one_over_double_area, 1.0f);
+						float w1_f = std::min((float)w1 * one_over_double_area, 1.0f);
+						float w2_f = std::max(1.0f - w0_f - w1_f, 0.0f);
 
 						uint32_t z = (uint32_t)((work_z[i0] + (w1_f * z10) + (w2_f * z20)) * (1 << DEPTH_BITS));
 						assert(z < ((1 << DEPTH_BITS) + 1) && "rasterizer_rasterize: z value is too large");
@@ -696,10 +676,10 @@ void rasterizer_rasterize(uint32_t *render_target, uint32_t *depth_buf, const st
 							float v = uv0.y + (w1_f * uv10.y) + (w2_f * uv20.y);
 							v /= interp_w;
 
-							const unsigned int texture_index = (unsigned)(tex_coor_y_max * v) * (unsigned)texture_size->x
+							const unsigned int texture_index = (unsigned)(tex_coor_y_max * v) * (unsigned)texture_size.x
 								+ (unsigned)(tex_coor_x_max * u);
-							assert(pixel_index < (unsigned)(target_size->x * target_size->y) && "rasterizer_rasterize: invalid pixel_index");
-							assert(texture_index < (unsigned)(texture_size->x * texture_size->y) && "rasterizer_rasterize: invalid texture_index");
+							assert(pixel_index < (unsigned)(target_size.x * target_size.y) && "rasterizer_rasterize: invalid pixel_index");
+							assert(texture_index < (unsigned)(texture_size.x * texture_size.y) && "rasterizer_rasterize: invalid texture_index");
 							render_target[pixel_index] = texture[texture_index];
 						}
 					}
@@ -715,19 +695,18 @@ void rasterizer_rasterize(uint32_t *render_target, uint32_t *depth_buf, const st
 				w1_row += step_y_20;
 				w2_row += step_y_01;
 
-				pixel_index_row += target_size->x;
+				pixel_index_row += target_size.x;
 			}
 #endif		
 		}
 	}
 }
 
-void rasterizer_clear_depth_buffer(uint32_t *depth_buf, const struct vec2_int *buf_size)
+void rasterizer_clear_depth_buffer(uint32_t *depth_buf, const struct vec2_int &buf_size)
 {
 	assert(depth_buf && "rasterizer_clear_depth_buffer: depth_buf is NULL");
-	assert(buf_size && "rasterizer_clear_depth_buffer: buf_size is NULL");
 
-	for (int i = 0; i < buf_size->x * buf_size->y; ++i)
+	for (int i = 0; i < buf_size.x * buf_size.y; ++i)
 		depth_buf[i] |= 0x00FFFFFF;
 }
 
@@ -754,17 +733,14 @@ uint32_t rasterizer_get_tile_size(void)
 	return TILE_SIZE;
 }
 
-void rasterizer_get_padded_size(const struct vec2_int *target_size, struct vec2_int *out_padded_size)
+void rasterizer_get_padded_size(const struct vec2_int &target_size, struct vec2_int &out_padded_size)
 {
-	assert(target_size && "rasterizer_get_padded_size: target_size is NULL");
-	assert(out_padded_size && "rasterizer_get_padded_size: out_padded_size is NULL");
-
-	out_padded_size->x = target_size->x;
-	out_padded_size->y = target_size->y;
+	out_padded_size.x = target_size.x;
+	out_padded_size.y = target_size.y;
 #ifdef USE_TILES
-	if ((target_size->x % TILE_SIZE) != 0)
-		out_padded_size->x += TILE_SIZE - (target_size->x % TILE_SIZE);
-	if ((target_size->y % TILE_SIZE) != 0)
-		out_padded_size->y += TILE_SIZE - (target_size->y % TILE_SIZE);
+	if ((target_size.x % TILE_SIZE) != 0)
+		out_padded_size.x += TILE_SIZE - (target_size.x % TILE_SIZE);
+	if ((target_size.y % TILE_SIZE) != 0)
+		out_padded_size.y += TILE_SIZE - (target_size.y % TILE_SIZE);
 #endif
 }

@@ -15,17 +15,17 @@ struct stats;
 struct stats *stats_create(const unsigned char stat_count, const unsigned int frames_in_buffer, const bool profilingRun);
 void stats_destroy(struct stats **stats);
 
-bool stats_profiling_run_complete(const struct stats *stats);
+bool stats_profiling_run_complete(const struct stats &stats);
 
 /* Call this only once per stat between stat_frame_complete calls.
  * Calling this multiple times for a single stat overrides the previous value. */
-void stats_update_stat(struct stats *stats, const unsigned char stat_id, const uint32_t time);
-void stats_frame_complete(struct stats *stats);
+void stats_update_stat(struct stats &stats, const unsigned char stat_id, const uint32_t time);
+void stats_frame_complete(struct stats &stats);
 
-uint32_t stats_get_stat_prev_frame(struct stats *stats, const unsigned char stat_id);
+uint32_t stats_get_stat_prev_frame(const struct stats &stats, const unsigned char stat_id);
 /* Returns stats for the previous frame */
-uint32_t stats_get_stat_percentile(struct stats *stats, const unsigned char stat_id, const float percentile);
-uint32_t stats_get_avarage(struct stats *stats, const unsigned char stat_id);
+uint32_t stats_get_stat_percentile(const struct stats &stats, const unsigned char stat_id, const float percentile);
+uint32_t stats_get_avarage(const struct stats &stats, const unsigned char stat_id);
 
 
 #endif /* RPLNN_STATS_H */

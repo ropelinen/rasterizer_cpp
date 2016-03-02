@@ -9,17 +9,17 @@ struct renderer_info;
 void error_popup(const char *msg, const bool kill_program);
 
 /* This should be defined in main.c and only contain non platform specific code */
-void main(struct api_info *api_info, struct renderer_info *renderer_info);
+void main(struct api_info &api_info, struct renderer_info &renderer_info);
 
 bool event_loop(void);
 
-void finish_drawing(struct api_info *api_info);
+void finish_drawing(struct api_info &api_info);
 
-void *get_backbuffer(struct renderer_info *info);
-struct vec2_int get_backbuffer_size(struct renderer_info *info);
-uint32_t get_blit_duration_ms(struct renderer_info *info);
+void *get_backbuffer(struct renderer_info &info);
+struct vec2_int get_backbuffer_size(const struct renderer_info &info);
+uint32_t get_blit_duration_ms(const struct renderer_info &info);
 
-void renderer_clear_backbuffer(struct renderer_info *info, const uint32_t color);
+void renderer_clear_backbuffer(struct renderer_info &info, const uint32_t color);
 
 uint64_t get_time(void);
 uint64_t get_time_microseconds(const uint64_t time);
@@ -34,9 +34,9 @@ struct thread;
 /* Negative value means any core will do */
 struct thread *thread_create(const int core_id);
 void thread_destroy(struct thread **thread);
-bool thread_set_task(struct thread *thread, void(*func)(void *), void *data);
-bool thread_has_task(struct thread *thread);
-void thread_wait_for_task(struct thread *thread);
+bool thread_set_task(struct thread &thread, void(*func)(void *), void *data);
+bool thread_has_task(struct thread &thread);
+void thread_wait_for_task(struct thread &thread);
 
 /* Input */
 enum keycodes
@@ -70,7 +70,7 @@ enum keycodes
 	KEY_COUNT
 };
 
-bool is_key_down(struct api_info *api_info, enum keycodes keycode);
+bool is_key_down(const struct api_info &api_info, const enum keycodes keycode);
 
 
 #endif /* RPLNN_OSAL_H */
