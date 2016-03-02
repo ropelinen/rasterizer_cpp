@@ -18,29 +18,29 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="demo\main.c">
+    <ClCompile Include="demo\font.cpp">
       <Filter>Source Files\demo</Filter>
     </ClCompile>
-    <ClCompile Include="precompiled.c">
+    <ClCompile Include="demo\main.cpp">
+      <Filter>Source Files\demo</Filter>
+    </ClCompile>
+    <ClCompile Include="demo\osal_win.cpp">
+      <Filter>Source Files\demo</Filter>
+    </ClCompile>
+    <ClCompile Include="demo\stats.cpp">
+      <Filter>Source Files\demo</Filter>
+    </ClCompile>
+    <ClCompile Include="demo\texture.cpp">
+      <Filter>Source Files\demo</Filter>
+    </ClCompile>
+    <ClCompile Include="matrix.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="demo\osal_win.c">
-      <Filter>Source Files\demo</Filter>
-    </ClCompile>
-    <ClCompile Include="demo\font.c">
-      <Filter>Source Files\demo</Filter>
-    </ClCompile>
-    <ClCompile Include="demo\stats.c">
-      <Filter>Source Files\demo</Filter>
-    </ClCompile>
-    <ClCompile Include="rasterizer.c">
+    <ClCompile Include="rasterizer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="matrix.c">
+    <ClCompile Include="precompiled.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="demo\texture.c">
-      <Filter>Source Files\demo</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

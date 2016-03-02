@@ -27,13 +27,13 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="demo\font.c" />
-    <ClCompile Include="demo\main.c" />
-    <ClCompile Include="demo\osal_win.c" />
-    <ClCompile Include="demo\stats.c" />
-    <ClCompile Include="demo\texture.c" />
-    <ClCompile Include="matrix.c" />
-    <ClCompile Include="precompiled.c">
+    <ClCompile Include="demo\font.cpp" />
+    <ClCompile Include="demo\main.cpp" />
+    <ClCompile Include="demo\osal_win.cpp" />
+    <ClCompile Include="demo\stats.cpp" />
+    <ClCompile Include="demo\texture.cpp" />
+    <ClCompile Include="matrix.cpp" />
+    <ClCompile Include="precompiled.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Production|Win32'">Create</PrecompiledHeader>
@@ -41,7 +41,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Production|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="rasterizer.c" />
+    <ClCompile Include="rasterizer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="defines.h" />
