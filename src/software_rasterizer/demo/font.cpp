@@ -11,69 +11,58 @@
 
 #include <stdio.h>
 
-struct font
-{
-	stbtt_fontinfo font_info;
-	float scale;
-	int ascent;
-	int descent;
-	int line_gap;
-	void *buffer;
-};
-
-struct font *font_create(const char *file_name)
+font::font(const char *file_name, float line_height)
+	: buffer(NULL)
+	, font_info(NULL)
 {
 	assert(file_name && "font_create: file_name is NULL");
 
-	struct font *font = new struct font;
 	FILE *font_file = fopen(file_name, "rb");
 	if (!font_file)
-		return NULL;
+		return;
 
 	fseek(font_file, 0, SEEK_END);
 	unsigned size = (unsigned)ftell(font_file);
 	fseek(font_file, 0, SEEK_SET);
 
-	font->buffer = malloc(size);
+	buffer = malloc(size);
+	font_info = new struct stbtt_fontinfo;
 
-	fread(font->buffer, size, 1, font_file);
+	fread(buffer, size, 1, font_file);
 	fclose(font_file);
 
-	if (!stbtt_InitFont(&font->font_info, (const unsigned char *)font->buffer, 0))
-		return NULL;
+	if (!stbtt_InitFont(font_info, (const unsigned char *)buffer, 0))
+	{
+		delete font_info;
+		font_info = NULL;
+		free(buffer);
+		buffer = NULL;
+		return;
+	}
 
-	return font;
+	set_line_height(line_height);
 }
 
-void font_destroy(struct font **font)
+font::~font()
 {
-	assert(font && "font_destroy: font is NULL");
-	assert(*font && "font_destroy: *font is NULL");
-
-	free((*font)->buffer);
-	delete *font;
-	*font = NULL;
+	if (buffer)
+		free(buffer);
+	if (font_info)
+		delete font_info;
 }
 
-void font_set_line_height(struct font &font, float line_height)
+void font::set_line_height(float line_height)
 {
-	float scale;
-	int ascent, descent;
-
-	scale = stbtt_ScaleForPixelHeight(&(font.font_info), line_height);
-	stbtt_GetFontVMetrics(&(font.font_info), &ascent, &descent, &(font.line_gap));
-	font.ascent = (int)(ascent * scale);
-	font.descent = (int)(descent * scale);
-	font.scale = scale;
+	scale = stbtt_ScaleForPixelHeight(font_info, line_height);
+	stbtt_GetFontVMetrics(font_info, &ascent, &descent, &line_gap);
+	ascent = (int)(ascent * scale);
+	descent = (int)(descent * scale);
 }
 
-void font_render_text(void *render_target, const struct vec2_int &target_size, const struct font &font, const char *text, const struct vec2_int &pos, const uint32_t text_color)
+void font::render_text(void *render_target, const struct vec2_int &target_size, const char *text, const struct vec2_int &pos, const uint32_t text_color) const
 {
 	assert(render_target && "font_render_text: render_target is NULL");
 	assert(text && "font_render_text: text is NULL");
-
-	const stbtt_fontinfo *font_info = &(font.font_info);
-	float scale = font.scale;
 
 	int x = 0;
 	unsigned int text_len = (unsigned int)strlen(text);
@@ -84,7 +73,7 @@ void font_render_text(void *render_target, const struct vec2_int &target_size, c
 		int char_y0, char_y1;
 		stbtt_GetCodepointBitmapBox(font_info, text[i], scale, scale, &char_x0, &char_y0, &char_x1, &char_y1);
 
-		int y = font.ascent + char_y0;
+		int y = ascent + char_y0;
 		int char_width, char_height;
 		int x_offset, y_offset;
 		/* NOTE: This allocates memory, should do something about that */

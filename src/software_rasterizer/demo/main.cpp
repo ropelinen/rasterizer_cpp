@@ -42,10 +42,10 @@ void create_box_buffers(struct vec3_float *out_vert_buf, struct vec2_float *out_
 void generate_large_test_buffers(const struct vec3_float *vert_buf_box, const struct vec2_float *uv_box, const unsigned int *ind_buf_box,
 	struct vec3_float *out_vert_buf, struct vec2_float *out_uv, unsigned int *out_ind_buf, const struct vec3_float *box_offsets, const unsigned int box_count_out);
 
-void render_stats(const struct stats &stats, const struct font &font, void *render_target, const struct vec2_int &target_size);
-void render_stat_line_ms(const struct stats &stats, const struct font &font, void *render_target, const struct vec2_int &target_size, 
+void render_stats(const struct stats &stats, const font &font, void *render_target, const struct vec2_int &target_size);
+void render_stat_line_ms(const struct stats &stats, const font &font, void *render_target, const struct vec2_int &target_size, 
                          const char *stat_name, const unsigned char stat_id, const int row_y, const int stat_name_x, const int first_val_x, const int x_increment);
-void render_stat_line_mus(const struct stats &stats, const struct font &font, void *render_target, const struct vec2_int &target_size,
+void render_stat_line_mus(const struct stats &stats, const font &font, void *render_target, const struct vec2_int &target_size,
                           const char *stat_name, const unsigned char stat_id, const int row_y, const int stat_name_x, const int first_val_x, const int x_increment);
 
 /* A generic platform independent main function.
@@ -63,10 +63,8 @@ void main(struct api_info &api_info, struct renderer_info &renderer_info)
 	if (!texture_data || !texture_size)
 		error_popup("Couldn't get texture info", true);
 
-	struct font *font = font_create("Tuffy.ttf");
-	if (font)
-		font_set_line_height(*font, 19);
-	else
+	font font("Tuffy.ttf", 19);
+	if (!font.is_valid())
 		error_popup("Failed to initialize the font", false);
 
 	struct stats *stats = stats_create(STAT_COUNT, 1000, true);
@@ -321,8 +319,8 @@ void main(struct api_info &api_info, struct renderer_info &renderer_info)
 
 		/* Stat rendering should be easy to disable/modify.
 		 * Maybe a bit field for what should be shown, uint32_t would be easily enough. */
-		if (stats && font && stats_profiling_run_complete(*stats))
-			render_stats(*stats, *font, get_backbuffer(renderer_info), rendertarget_size);
+		if (stats && font.is_valid() && stats_profiling_run_complete(*stats))
+			render_stats(*stats, font, get_backbuffer(renderer_info), rendertarget_size);
 
 		finish_drawing(api_info);
 
@@ -357,9 +355,6 @@ void main(struct api_info &api_info, struct renderer_info &renderer_info)
 
 	if (stats)
 		stats_destroy(&stats);
-	
-	if (font)
-		font_destroy(&font);
 
 	texture_destroy(&texture);
 }
@@ -477,7 +472,7 @@ void generate_large_test_buffers(const struct vec3_float *vert_buf_box, const st
 	}
 }
 
-void render_stats(const struct stats &stats, const struct font &font, void *render_target, const struct vec2_int &target_size)
+void render_stats(const struct stats &stats, const font &font, void *render_target, const struct vec2_int &target_size)
 {
 #define STAT_COLUMN_X 5
 #define FIRST_VAL_COLUMN_X 100
@@ -494,11 +489,11 @@ void render_stats(const struct stats &stats, const struct font &font, void *rend
 	const struct vec2_int pos_percentile_99 = { FIRST_VAL_COLUMN_X + COLUMN_X_INCREMENT * 4, INFO_ROW_Y };
 
 	/* Info line */
-	font_render_text(render_target, target_size, font, "avg", pos_avarage, 0);
-	font_render_text(render_target, target_size, font, "mdn", pos_median, 0);
-	font_render_text(render_target, target_size, font, "90%", pos_percentile_90, 0);
-	font_render_text(render_target, target_size, font, "95%", pos_percentile_95, 0);
-	font_render_text(render_target, target_size, font, "99%", pos_percentile_99, 0);
+	font.render_text(render_target, target_size, "avg", pos_avarage, 0);
+	font.render_text(render_target, target_size, "mdn", pos_median, 0);
+	font.render_text(render_target, target_size, "90%", pos_percentile_90, 0);
+	font.render_text(render_target, target_size, "95%", pos_percentile_95, 0);
+	font.render_text(render_target, target_size, "99%", pos_percentile_99, 0);
 
 	/* Frame time */
 	render_stat_line_ms(stats, font, render_target, target_size, "frame (ms):", STAT_FRAME, INFO_ROW_Y + ROW_Y_INCREMENT, STAT_COLUMN_X, FIRST_VAL_COLUMN_X, COLUMN_X_INCREMENT);
@@ -514,7 +509,7 @@ void render_stats(const struct stats &stats, const struct font &font, void *rend
 #undef ROW_Y_INCREMENT
 }
 
-void render_stat_line_ms(const struct stats &stats, const struct font &font, void *render_target, const struct vec2_int &target_size,
+void render_stat_line_ms(const struct stats &stats, const font &font, void *render_target, const struct vec2_int &target_size,
                          const char *stat_name, const unsigned char stat_id, const int row_y, const int stat_name_x, const int first_val_x, const int x_increment)
 {
 	assert(render_target && "render_stat_line_ms: render_target is NULL");
@@ -525,32 +520,32 @@ void render_stat_line_ms(const struct stats &stats, const struct font &font, voi
 	pos.y = row_y;
 
 	/* Render stat name*/
-	font_render_text(render_target, target_size, font, stat_name, pos, 0);
+	font.render_text(render_target, target_size, stat_name, pos, 0);
 
 	char str[10];
 	/* Avarage */
 	pos.x = first_val_x;
 	if (!float_to_string((float)stats_get_avarage(stats, stat_id) / 1000.0f, str, 10)) { /* The value has been truncated, do something?? */ }
-	font_render_text(render_target, target_size, font, str, pos, 0);
+	font.render_text(render_target, target_size, str, pos, 0);
 	/* Median */
 	pos.x += x_increment;
 	if (!float_to_string((float)stats_get_stat_percentile(stats, stat_id, 50.0f) / 1000.0f, str, 10)) { /* The value has been truncated, do something?? */ }
-	font_render_text(render_target, target_size, font, str, pos, 0);
+	font.render_text(render_target, target_size, str, pos, 0);
 	/* 90th percentile */
 	pos.x += x_increment;
 	if (!float_to_string((float)stats_get_stat_percentile(stats, stat_id, 90.0f) / 1000.0f, str, 10)) { /* The value has been truncated, do something?? */ }
-	font_render_text(render_target, target_size, font, str, pos, 0);
+	font.render_text(render_target, target_size, str, pos, 0);
 	/* 95th percentile */
 	pos.x += x_increment;
 	if (!float_to_string((float)stats_get_stat_percentile(stats, stat_id, 95.0f) / 1000.0f, str, 10)) { /* The value has been truncated, do something?? */ }
-	font_render_text(render_target, target_size, font, str, pos, 0);
+	font.render_text(render_target, target_size, str, pos, 0);
 	/* 99th percentile */
 	pos.x += x_increment;
 	if (!float_to_string((float)stats_get_stat_percentile(stats, stat_id, 99.0f) / 1000.0f, str, 10)) { /* The value has been truncated, do something?? */ }
-	font_render_text(render_target, target_size, font, str, pos, 0);
+	font.render_text(render_target, target_size, str, pos, 0);
 }
 
-void render_stat_line_mus(const struct stats &stats, const struct font &font, void *render_target, const struct vec2_int &target_size,
+void render_stat_line_mus(const struct stats &stats, const font &font, void *render_target, const struct vec2_int &target_size,
                           const char *stat_name, const unsigned char stat_id, const int row_y, const int stat_name_x, const int first_val_x, const int x_increment)
 {
 	assert(render_target && "render_stat_line_mus: render_target is NULL");
@@ -561,30 +556,30 @@ void render_stat_line_mus(const struct stats &stats, const struct font &font, vo
 	pos.y = row_y;
 
 	/* Render stat name*/
-	font_render_text(render_target, target_size, font, stat_name, pos, 0);
+	font.render_text(render_target, target_size, stat_name, pos, 0);
 
 	char str[10];
 
 	/* Avarage */
 	pos.x = first_val_x;
 	if (uint64_to_string((uint64_t)stats_get_avarage(stats, stat_id), str, 10))
-		font_render_text(render_target, target_size, font, str, pos, 0);
+		font.render_text(render_target, target_size, str, pos, 0);
 	/* Median */
 	pos.x += x_increment;
 	if (uint64_to_string((uint64_t)stats_get_stat_percentile(stats, stat_id, 50.0f), str, 10))
-		font_render_text(render_target, target_size, font, str, pos, 0);
+		font.render_text(render_target, target_size, str, pos, 0);
 	/* 90th percentile */
 	pos.x += x_increment;
 	if (uint64_to_string((uint64_t)stats_get_stat_percentile(stats, stat_id, 90.0f), str, 10))
-		font_render_text(render_target, target_size, font, str, pos, 0);
+		font.render_text(render_target, target_size, str, pos, 0);
 	/* 95th percentile */
 	pos.x += x_increment;
 	if (uint64_to_string((uint64_t)stats_get_stat_percentile(stats, stat_id, 95.0f), str, 10))
-		font_render_text(render_target, target_size, font, str, pos, 0);
+		font.render_text(render_target, target_size, str, pos, 0);
 	/* 99th percentile */
 	pos.x += x_increment;
 	if (uint64_to_string((uint64_t)stats_get_stat_percentile(stats, stat_id, 99.0f), str, 10))
-		font_render_text(render_target, target_size, font, str, pos, 0);
+		font.render_text(render_target, target_size, str, pos, 0);
 }
 
 #ifdef USE_THREADING

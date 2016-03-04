@@ -1,15 +1,24 @@
 #ifndef RPLNN_FONT_H
 #define RPLNN_FONT_H
 
-struct font;
+class font
+{
+public:
+	font(const char *file_name, float line_height);
+	~font();
 
-/* Should create a version of this which doesn't malloc (basically just give memory block as a parameter). */
-struct font *font_create(const char *file_name);
+	void set_line_height(float line_height);
+	/* Would make more sense to have this somewhere in rasterizing etc */
+	void render_text(void *render_target, const struct vec2_int &target_size, const char *text, const struct vec2_int &pos, const uint32_t text_color) const ;
+	inline bool is_valid() { return buffer != NULL; };
 
-void font_destroy(struct font **font);
-
-void font_set_line_height(struct font &font, float line_height);
-
-void font_render_text(void *render_target, const struct vec2_int &target_size, const struct font &font, const char *text, const struct vec2_int &pos, const uint32_t text_color);
+private:
+	float scale;
+	int ascent;
+	int descent;
+	int line_gap;
+	void *buffer;
+	struct stbtt_fontinfo *font_info;
+};
 
 #endif /* RPLNN_FONT_H */
