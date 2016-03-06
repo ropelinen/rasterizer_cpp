@@ -1,6 +1,6 @@
 #include "software_rasterizer/precompiled.h"
 
-#include "font.h"
+#include "texture.h"
 
 #include "software_rasterizer/vector.h"
 
@@ -11,50 +11,40 @@
 #include <stb\stb_image.h>
 #pragma warning(pop)
 
-struct texture
-{
-	uint32_t *buf;
-	struct vec2_int size;
-};
-
-struct texture *texture_create(const char *file_name)
+texture::texture(const char *file_name)
+	: buffer(NULL)
 {
 	assert(file_name && "texture_create: file_name is NULL");
-
-	struct texture *texture = new struct texture;
-
+	
 	int n;
-	unsigned char *data = stbi_load(file_name, &texture->size.x, &texture->size.y, &n, 3);
+	unsigned char *data = stbi_load(file_name, &size.x, &size.y, &n, 3);
 	if (!data)
 	{
-		delete texture;
-		return NULL;
+		return;
 	}
 
-	texture->buf = new uint32_t[(size_t)(texture->size.x * texture->size.y)];
-	for (int i = 0, j = 0; i < (texture->size.x * texture->size.y); ++i, j += 3)
-		texture->buf[i] = (uint32_t)((data[j] << 16) | (data[j + 1] << 8) | data[j + 2]);
+	buffer = new uint32_t[(size_t)(size.x * size.y)];
+	for (int i = 0, j = 0; i < (size.x * size.y); ++i, j += 3)
+		buffer[i] = (uint32_t)((data[j] << 16) | (data[j + 1] << 8) | data[j + 2]);
 
 	stbi_image_free(data);
-
-	return texture;
 }
 
-void texture_destroy(struct texture **texture)
+texture::~texture()
 {
-	assert(texture && "texture_destroy: texture is NULL");
-	assert(*texture && "texture_destroy: *texture is NULL");
-
-	delete[] (*texture)->buf;
-	delete *texture;
-	*texture = NULL;
+	delete[] buffer;
 }
 
-void texture_get_info(struct texture &texture, uint32_t **buf, struct vec2_int **size)
+bool texture::is_valid() const
+{
+	return buffer != NULL;
+}
+
+void texture::get_info(uint32_t **buf, struct vec2_int **texture_size)
 {
 	assert(buf && "texture_get_info: buf is NULL");
-	assert(size && "texture_get_info: size is NULL");
+	assert(texture_size && "texture_get_info: texture_size is NULL");
 
-	*buf = texture.buf;
-	*size = &(texture.size);
+	*buf = buffer;
+	*texture_size = &(size);
 }

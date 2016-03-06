@@ -52,14 +52,14 @@ void render_stat_line_mus(const stats &stats, const font &font, void *render_tar
  * See osal.c for platform specific main. */
 void main(struct api_info &api_info, struct renderer_info &renderer_info)
 {
-	struct texture *texture = texture_create("crate.png");
-	if (!texture)
+	texture texture("crate.png");
+	if (!texture.is_valid())
 		error_popup("Failed to load the texture", true);
 
 	uint32_t *texture_data = NULL;
 	struct vec2_int *texture_size = NULL;
 
-	texture_get_info(*texture, &texture_data, &texture_size);
+	texture.get_info(&texture_data, &texture_size);
 	if (!texture_data || !texture_size)
 		error_popup("Couldn't get texture info", true);
 
@@ -352,8 +352,6 @@ void main(struct api_info &api_info, struct renderer_info &renderer_info)
 		delete[] render_target;
 	
 	delete[] depth_buf;
-
-	texture_destroy(&texture);
 }
 
 void transform_vertices(const struct vec3_float *in_verts, struct vec4_float *out_verts, unsigned int vert_count,
