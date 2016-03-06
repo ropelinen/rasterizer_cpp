@@ -4,66 +4,37 @@
 
 #include <string.h>
 
-struct stats
+stats::stats(const unsigned char stat_count, const unsigned int frames_in_buffer, const bool profiling_run)
+	: stats_arr(NULL)
+	, stats_sorted(NULL)
 {
-	/* When using microseconds uint32_t can store 71 minutes, 
-	 * uint16_would be enough for 65 milliseconds. 
-	 * Could store the time in 1/10 milliseconds or something like,
-	 * it should be ok for any normal frame time but not worth the trouble right now. */
-	uint32_t *stats_arr;
-	/* When ever a stat is updated the value is also added to this sorted array and the old value is removed.
-	 * This allows efficient checking of percentile values. However this doubles memory consumption. */
-	uint32_t *stats_sorted;
-	/* The sum of all the stats, used for fast calculation of avarages. */
-	uint64_t *sums;
-	/* We use the stats array like a circular buffer
-	 * this is the index we are currently using. */
-	unsigned int current_index;
-	unsigned int frames_in_buffer;
-	unsigned char stat_count;
-	/* If set to true the stats are collected only until the buffer gets full.
-	 * Ie the index will not loop (nor is the last stat overwritten). */
-	bool profiling_run;
-};
+	stats_arr = new uint32_t[stat_count * frames_in_buffer];
+	memset(stats_arr, 0, stat_count * frames_in_buffer * sizeof(uint32_t));
+	stats_sorted = new uint32_t[stat_count * frames_in_buffer];
+	memset(stats_sorted, 0, stat_count * frames_in_buffer * sizeof(uint32_t));
+	sums = new uint64_t[stat_count];
+	memset(sums, 0, stat_count * sizeof(uint64_t));
 
-struct stats *stats_create(const unsigned char stat_count, const unsigned int frames_in_buffer, const bool profiling_run)
-{
-	struct stats *stats = new struct stats;
-
-	stats->stats_arr = new uint32_t[stat_count * frames_in_buffer];
-	memset(stats->stats_arr, 0, stat_count * frames_in_buffer * sizeof(uint32_t));
-	stats->stats_sorted = new uint32_t[stat_count * frames_in_buffer];
-	memset(stats->stats_sorted, 0, stat_count * frames_in_buffer * sizeof(uint32_t));
-	stats->sums = new uint64_t[stat_count];
-	memset(stats->sums, 0, stat_count * sizeof(uint64_t));
-
-	stats->current_index = 0;
-	stats->frames_in_buffer = frames_in_buffer;
-	stats->stat_count = stat_count;
-	stats->profiling_run = profiling_run;
-
-	return stats;
+	current_index = 0;
+	this->frames_in_buffer = frames_in_buffer;
+	this->stat_count = stat_count;
+	this->profiling_run = profiling_run;
 }
 
-void stats_destroy(struct stats **stats)
+stats::~stats()
 {
-	assert(stats && "stats_destroy: stats is NULL");
-	assert(*stats && "stats_destroy: *stats is NULL");
-
-	delete[] (*stats)->sums;
-	delete[] (*stats)->stats_sorted;
-	delete[] (*stats)->stats_arr;
-	delete *stats;
+	delete[] sums;
+	delete[] stats_sorted;
+	delete[] stats_arr;
 }
 
-bool stats_profiling_run_complete(const struct stats &stats)
+bool stats::is_profiling_complete() const
 {
-	assert(stats.profiling_run && "stats_profiling_run_complete: The stats are not defined as a profiling run");
 
-	return stats.profiling_run && stats.current_index >= stats.frames_in_buffer;
+	return profiling_run && current_index >= frames_in_buffer;
 }
 
-void update_sorted(uint32_t *data, const unsigned int data_size, const uint32_t new_val, const uint32_t prev_val)
+void stats::update_sorted(uint32_t *data, const unsigned int data_size, const uint32_t new_val, const uint32_t prev_val)
 {
 	assert(data && "update_sorted: data is NULL");
 
@@ -138,55 +109,55 @@ void update_sorted(uint32_t *data, const unsigned int data_size, const uint32_t 
 	}
 }
 
-void stats_update_stat(struct stats &stats, const unsigned char stat_id, const uint32_t time)
+void stats::update_stat(const unsigned char stat_id, const uint32_t time)
 {
-	assert(stat_id < stats.stat_count && "stats_update_stat: Too big stat_id");
+	assert(stat_id < stat_count && "stats_update_stat: Too big stat_id");
 
-	if (stats.profiling_run && stats.current_index >= stats.frames_in_buffer)
+	if (profiling_run && current_index >= frames_in_buffer)
 		return;
 
-	uint32_t prev_value = stats.stats_arr[(stat_id * stats.frames_in_buffer) + stats.current_index];
+	uint32_t prev_value = stats_arr[(stat_id * frames_in_buffer) + current_index];
 	/* No change here, don't do anything. */
 	if (time == prev_value)
 		return;
 	
-	stats.stats_arr[(stat_id * stats.frames_in_buffer) + stats.current_index] = time;
+	stats_arr[(stat_id * frames_in_buffer) + current_index] = time;
 
-	stats.sums[stat_id] -= prev_value;
-	stats.sums[stat_id] += time;
+	sums[stat_id] -= prev_value;
+	sums[stat_id] += time;
 
-	update_sorted(&(stats.stats_sorted[stat_id * stats.frames_in_buffer]), stats.frames_in_buffer, time, prev_value);
+	update_sorted(&(stats_sorted[stat_id * frames_in_buffer]), frames_in_buffer, time, prev_value);
 #if RPLNN_BUILD_TYPE == RPLNN_DEBUG
-	uint32_t *data = &(stats.stats_sorted[stat_id * stats.frames_in_buffer]);
-	for (unsigned int i = 0; i < stats.frames_in_buffer - 1; ++i)
+	uint32_t *data = &(stats_sorted[stat_id * frames_in_buffer]);
+	for (unsigned int i = 0; i < frames_in_buffer - 1; ++i)
 		assert(data[i] >= data[i + 1] && "sort: stats not properly sorted after running insertion");
 #endif
 }
 
-void stats_frame_complete(struct stats &stats)
+void stats::frame_complete()
 {
-	++(stats.current_index);
-	if (stats.current_index >= stats.frames_in_buffer)
+	++current_index;
+	if (current_index >= frames_in_buffer)
 	{
-		if (stats.profiling_run)
-			stats.current_index = stats.frames_in_buffer;
+		if (profiling_run)
+			current_index = frames_in_buffer;
 		else
-			stats.current_index = 0;
+			current_index = 0;
 	}
 }
 
-uint32_t stats_get_stat_prev_frame(const struct stats &stats, const unsigned char stat_id)
+uint32_t stats::get_stat_prev_frame(const unsigned char stat_id) const
 {
-	return stats.stats_arr[(stat_id * stats.frames_in_buffer) + (stats.current_index ? stats.current_index : stats.frames_in_buffer) - 1];
+	return stats_arr[(stat_id * frames_in_buffer) + (current_index ? current_index : frames_in_buffer) - 1];
 }
 
-uint32_t stats_get_stat_percentile(const struct stats &stats, const unsigned char stat_id, const float percentile)
+uint32_t stats::get_stat_percentile(const unsigned char stat_id, const float percentile) const
 {
-	unsigned int index = (unsigned int)((stats.frames_in_buffer - 1) * (1.0f - (percentile * 0.01f)));
-	return stats.stats_sorted[(stat_id * stats.frames_in_buffer) + index];
+	unsigned int index = (unsigned int)((frames_in_buffer - 1) * (1.0f - (percentile * 0.01f)));
+	return stats_sorted[(stat_id * frames_in_buffer) + index];
 }
 
-uint32_t stats_get_avarage(const struct stats &stats, const unsigned char stat_id)
+uint32_t stats::get_avarage(const unsigned char stat_id) const
 {
-	return (uint32_t)(stats.sums[stat_id] / stats.frames_in_buffer);
+	return (uint32_t)(sums[stat_id] / frames_in_buffer);
 }
