@@ -74,5 +74,8 @@
     <ClInclude Include="demo\texture.h">
       <Filter>Source Files\demo</Filter>
     </ClInclude>
+    <ClInclude Include="simd.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

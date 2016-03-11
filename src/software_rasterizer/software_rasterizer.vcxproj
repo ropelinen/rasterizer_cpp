@@ -52,6 +52,7 @@
     <ClInclude Include="matrix.h" />
     <ClInclude Include="precompiled.h" />
     <ClInclude Include="rasterizer.h" />
+    <ClInclude Include="simd.h" />
     <ClInclude Include="util.h" />
     <ClInclude Include="vector.h" />
   </ItemGroup>
