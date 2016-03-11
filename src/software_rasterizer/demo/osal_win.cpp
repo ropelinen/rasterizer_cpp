@@ -64,6 +64,26 @@ struct api_info
 	struct renderer_info *renderer_info;
 };
 
+class scoped_critical_section
+{
+public:
+	scoped_critical_section(CRITICAL_SECTION &critical_section)
+		: cs(critical_section)
+	{
+		EnterCriticalSection(&cs);
+	}
+	~scoped_critical_section()
+	{
+		LeaveCriticalSection(&cs);
+	}
+
+private:
+	/* This will be implicitly deleted because a default constructor can't be used with a ref member var */
+	scoped_critical_section& operator = (const scoped_critical_section&) { }
+
+	CRITICAL_SECTION &cs;
+};
+
 struct thread
 {
 	CRITICAL_SECTION data_critical_section;
@@ -306,33 +326,30 @@ DWORD WINAPI thread_func(LPVOID lpParam)
 			return GetLastError();
 		}
 
-		EnterCriticalSection(&me->doing_task_critical_section);
-		EnterCriticalSection(&me->data_critical_section);
-		if (me->quit)
+		void(*func)(void *) = NULL;
+		void *data = NULL;
+		scoped_critical_section task_critical(me->doing_task_critical_section);
 		{
-			LeaveCriticalSection(&me->data_critical_section);
-			LeaveCriticalSection(&me->doing_task_critical_section);
-			return 0;
-		}
-		void(*func)(void *) = me->func; 
-		void *data = me->data;
-		LeaveCriticalSection(&me->data_critical_section);
+			scoped_critical_section data_critical(me->data_critical_section);
+			if (me->quit)
+				return 0;
+
+			func = me->func; 
+			data = me->data;
+		}	
 		
 		if (func)
 		{
 			(*func)(data);
 
-			EnterCriticalSection(&me->data_critical_section);
+			scoped_critical_section data_critical(me->data_critical_section);
 			me->func = NULL;
 			me->data = NULL;
-			LeaveCriticalSection(&me->data_critical_section);
 		}
 		else
 		{
 			assert(false && "Some one woke up the thread without a task when not quitting, shouldn't happen");
 		}
-
-		LeaveCriticalSection(&me->doing_task_critical_section);
 	}
 
 	return 0;
@@ -394,9 +411,10 @@ void thread_destroy(struct thread **thread)
 	assert((*thread)->handle && "thread_destroy: (*thread)->handle is NULL");
 	assert((*thread)->sleep_semaphore && "thread_destroy: (*thread)->sleep_semaphore is NULL");
 
-	EnterCriticalSection(&(*thread)->data_critical_section);
-	(*thread)->quit = true;
-	LeaveCriticalSection(&(*thread)->data_critical_section);
+	{
+		scoped_critical_section data_critical((*thread)->data_critical_section);
+		(*thread)->quit = true;
+	}
 
 	if (!ReleaseSemaphore((*thread)->sleep_semaphore, 1, NULL))
 	{
@@ -419,28 +437,28 @@ bool thread_set_task(struct thread &thread, void(*func)(void *), void *data)
 	assert(func && "thread_set_task: func is NULL");
 
 	bool success = true;
-	EnterCriticalSection(&thread.data_critical_section);
-	assert(!thread.quit && "thread_set_task: thread is quitting/has quit");
-	if (thread.func || thread.quit)
 	{
-		success = false;
+		scoped_critical_section data_critical(thread.data_critical_section);
+		assert(!thread.quit && "thread_set_task: thread is quitting/has quit");
+		if (thread.func || thread.quit)
+		{
+			success = false;
+		}
+		else
+		{
+			thread.func = func;
+			thread.data = data;
+		}
 	}
-	else
-	{
-		thread.func = func;
-		thread.data = data;
-	}
-	LeaveCriticalSection(&thread.data_critical_section);
 
 	if (success)
 	{
 		if (!ReleaseSemaphore(thread.sleep_semaphore, 1, NULL))
 		{
 			assert(false && "thread_set_task: Failed to release the sleep semaphore, the task won't be run");
-			EnterCriticalSection(&thread.data_critical_section);
+			scoped_critical_section data_critical(thread.data_critical_section);
 			thread.func = NULL;
 			thread.data = NULL;
-			LeaveCriticalSection(&thread.data_critical_section);
 			return false;
 		}
 	}
@@ -451,9 +469,8 @@ bool thread_set_task(struct thread &thread, void(*func)(void *), void *data)
 bool thread_has_task(struct thread &thread)
 {
 	bool has_task;
-	EnterCriticalSection(&thread.data_critical_section);
+	scoped_critical_section data_critical(thread.data_critical_section);
 	has_task = thread.func != NULL;
-	LeaveCriticalSection(&thread.data_critical_section);
 
 	return has_task;
 }
@@ -466,8 +483,9 @@ void thread_wait_for_task(struct thread &thread)
 		return;
 	}
 
-	EnterCriticalSection(&thread.doing_task_critical_section);
-	LeaveCriticalSection(&thread.doing_task_critical_section);
+	{
+		scoped_critical_section doing_task_critical(thread.doing_task_critical_section);
+	}
 
 	/* If this function is called immediately after setting the task there is a small chance that
 	 * the thread has not got far enough to enter doing_task_critical_section.
