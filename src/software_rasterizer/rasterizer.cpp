@@ -19,7 +19,7 @@
 #define TILE_SIZE 64
 
 #ifdef USE_SIMD
-#include <emmintrin.h>
+#include "software_rasterizer/simd.h"
 #endif
 
 /* 4 sub bits gives us [-2048, 2047] max render target.
@@ -38,16 +38,6 @@
 #define GB_BOTTOM (TO_FIXED(GB_MIN, (1 << SUB_BITS)))
 #define GB_RIGHT (TO_FIXED(GB_MAX, (1 << SUB_BITS)))
 #define GB_TOP (TO_FIXED(GB_MAX, (1 << SUB_BITS)))
-
-#ifdef USE_SIMD
-/* From http://stackoverflow.com/questions/10500766/sse-multiplication-of-4-32-bit-integers */
-__m128i mul_epi32(const __m128i &a, const __m128i &b)
-{
-	__m128i tmp1 = _mm_mul_epu32(a, b); /* mul 2,0*/
-	__m128i tmp2 = _mm_mul_epu32(_mm_srli_si128(a, 4), _mm_srli_si128(b, 4)); /* mul 3,1 */
-	return _mm_unpacklo_epi32(_mm_shuffle_epi32(tmp1, _MM_SHUFFLE(0, 0, 2, 0)), _mm_shuffle_epi32(tmp2, _MM_SHUFFLE(0, 0, 2, 0))); /* shuffle results to [63..0] and pack */
-}
-#endif
 
 /* Taken straight from https://fgiesen.wordpress.com/2013/02/08/triangle-rasterization-in-practice/ 
  * Returns the signed A*2 of the triangle formed by the three points. 
@@ -470,30 +460,19 @@ void rasterizer_rasterize(uint32_t *render_target, uint32_t *depth_buf, const st
 			int32_t step_y_20 = work_poly[i0].x - work_poly[i2].x;
 
 #ifdef USE_SIMD
-			float temp = work_uv[i0].x * work_w[i0];
-			const __m128 uv0x = _mm_set_ps(temp, temp, temp, temp);
-			temp = work_uv[i0].y * work_w[i0];
-			const __m128 uv0y = _mm_set_ps(temp, temp, temp, temp);
-			temp = work_uv[i1].x * work_w[i1] - work_uv[i0].x * work_w[i0];
-			const __m128 uv10x = _mm_set_ps(temp, temp, temp, temp); 
-			temp = work_uv[i1].y * work_w[i1] - work_uv[i0].y * work_w[i0];
-			const __m128 uv10y = _mm_set_ps(temp, temp, temp, temp);
-			temp = work_uv[i2].x * work_w[i2] - work_uv[i0].x * work_w[i0];
-			const __m128 uv20x = _mm_set_ps(temp, temp, temp, temp); 
-			temp = work_uv[i2].y * work_w[i2] - work_uv[i0].y * work_w[i0];
-			const __m128 uv20y = _mm_set_ps(temp, temp, temp, temp);
+			const simd128f uv0x(work_uv[i0].x * work_w[i0]);
+			const simd128f uv0y(work_uv[i0].y * work_w[i0]);
+			const simd128f uv10x(work_uv[i1].x * work_w[i1] - work_uv[i0].x * work_w[i0]);
+			const simd128f uv10y(work_uv[i1].y * work_w[i1] - work_uv[i0].y * work_w[i0]);
+			const simd128f uv20x(work_uv[i2].x * work_w[i2] - work_uv[i0].x * work_w[i0]);
+			const simd128f uv20y(work_uv[i2].y * work_w[i2] - work_uv[i0].y * work_w[i0]);
 
-			temp = 1.0f / (float)winding_2d(work_poly[i0], work_poly[i1], work_poly[i2]);
-			const __m128 one_over_double_area = _mm_set_ps(temp, temp, temp, temp);
-			temp = work_z[i1] - work_z[i0];
-			const __m128 z10 = _mm_set_ps(temp, temp, temp, temp);
-			temp = work_z[i2] - work_z[i0];
-			const __m128 z20 = _mm_set_ps(temp, temp, temp, temp);
+			const simd128f one_over_double_area(1.0f / (float)winding_2d(work_poly[i0], work_poly[i1], work_poly[i2]));
+			const simd128f z10(work_z[i1] - work_z[i0]);
+			const simd128f z20(work_z[i2] - work_z[i0]);
 
-			temp = (float)(texture_size.x - 1);
-			const __m128 tex_coor_x_max = _mm_set_ps(temp, temp, temp, temp);
-			temp = (float)(texture_size.y - 1);
-			const __m128 tex_coor_y_max = _mm_set_ps(temp, temp, temp, temp);
+			const simd128f tex_coor_x_max((float)(texture_size.x - 1));
+			const simd128f tex_coor_y_max((float)(texture_size.y - 1));
 
 #ifdef USE_TILES
 			unsigned int pixel_index_row;
@@ -513,74 +492,60 @@ void rasterizer_rasterize(uint32_t *render_target, uint32_t *depth_buf, const st
 				+ ((((min.x - half_pixel) / sub_multip) + half_width) * 2)); /* x */
 #endif
 
-			const __m128i step_size = _mm_set_epi32(2 * sub_multip, 2 * sub_multip, 2 * sub_multip, 2 * sub_multip);
-			const __m128i xor_mask = _mm_set_epi32(~(uint32_t)0, ~(uint32_t)0, ~(uint32_t)0, ~(uint32_t)0);
-			const __m128 work_w0 = _mm_set_ps(work_w[i0], work_w[i0], work_w[i0], work_w[i0]);
-			const __m128 work_w1 = _mm_set_ps(work_w[i1], work_w[i1], work_w[i1], work_w[i1]);
-			const __m128 work_w2 = _mm_set_ps(work_w[i2], work_w[i2], work_w[i2], work_w[i2]);
+			const simd128i step_size(2 * sub_multip);
+			const simd128i xor_mask(~(uint32_t)0);
+			const simd128f work_w0(work_w[i0]);
+			const simd128f work_w1(work_w[i1]);
+			const simd128f work_w2(work_w[i2]);
 
 			/* Rasterize */
-			__m128i point_x;
-			__m128i point_y = _mm_set_epi32(min.y + sub_multip, min.y + sub_multip, min.y, min.y);
-			for (; ((int32_t *)&point_y)[0] <= max.y; point_y = _mm_add_epi32(point_y, step_size))
-			{
-				__m128i w0 = _mm_set_epi32(w0_row + step_y_12 + step_x_12, w0_row + step_y_12, w0_row + step_x_12, w0_row);
-				__m128i w1 = _mm_set_epi32(w1_row + step_y_20 + step_x_20, w1_row + step_y_20, w1_row + step_x_20, w1_row);
-				__m128i w2 = _mm_set_epi32(w2_row + step_y_01 + step_x_01, w2_row + step_y_01, w2_row + step_x_01, w2_row);
+			simd128i point_x;
+			simd128i point_y(min.y + sub_multip, min.y + sub_multip, min.y, min.y);
 
+			for (; (point_y.get_int_ptr())[0] <= max.y; point_y += step_size)
+			{
+				simd128i w0(w0_row + step_y_12 + step_x_12, w0_row + step_y_12, w0_row + step_x_12, w0_row);
+				simd128i w1(w1_row + step_y_20 + step_x_20, w1_row + step_y_20, w1_row + step_x_20, w1_row);
+				simd128i w2(w2_row + step_y_01 + step_x_01, w2_row + step_y_01, w2_row + step_x_01, w2_row);
 				uint32_t pixel_index_start = pixel_index_row;
 
-				point_x = _mm_set_epi32(min.x + sub_multip, min.x, min.x + sub_multip, min.x);
-				for (; ((int32_t *)&point_x)[0] <= max.x; point_x = _mm_add_epi32(point_x, step_size))
+				point_x.set(min.x + sub_multip, min.x, min.x + sub_multip, min.x);
+				for (; (point_x.get_int_ptr())[0] <= max.x; point_x += step_size)
 				{
-					__m128i mask = _mm_or_si128(w0, w1);
-					mask = _mm_or_si128(mask, w2);
+					simd128i mask = w0 | w1 | w2;
 
 					/* Compare for less than zero
 					* (a0 < b0) ? 0xffffffff : 0x0
 					* if anything is >= 0 then there will be 0x0 bytes */
-					__m128i temp_mask = _mm_cmplt_epi32(mask, _mm_setzero_si128());
+					simd128i temp_mask = mask < simd128i();
 					/* Invert with xor */
-					mask = _mm_xor_si128(xor_mask, temp_mask);
-					/* Or all bits and check if any were set */
-					if (_mm_movemask_epi8(mask) != 0)
-					{
-						__m128 one = _mm_set_ps(1.0f, 1.0f, 1.0f, 1.0f);
-						__m128 w0_f = _mm_min_ps(_mm_mul_ps(_mm_cvtepi32_ps(w0), one_over_double_area), one);
-						__m128 w1_f = _mm_min_ps(_mm_mul_ps(_mm_cvtepi32_ps(w1), one_over_double_area), one);
-						__m128 w2_f = _mm_max_ps(_mm_sub_ps(_mm_sub_ps(one, w0_f), w1_f), _mm_setzero_ps());
+					mask = xor_mask ^ temp_mask;
 
-						__m128i z = _mm_cvttps_epi32(
-							_mm_mul_ps(_mm_set_ps((1 << DEPTH_BITS), (1 << DEPTH_BITS), (1 << DEPTH_BITS), (1 << DEPTH_BITS)),
-								_mm_add_ps(_mm_set_ps(work_z[i0], work_z[i0], work_z[i0], work_z[i0]),
-									_mm_add_ps(_mm_mul_ps(w1_f, z10), _mm_mul_ps(w2_f, z20)))));
+					/* Or all bits and check if any were set */
+					if (mask.movemask() != 0)
+					{
+						const simd128f one(1.0f);
+						simd128f w0_f = min_simd((simd128f(w0) * one_over_double_area), one);
+						simd128f w1_f = min_simd((simd128f(w1) * one_over_double_area), one);
+						simd128f w2_f = max_simd(((one - w0_f) - w1_f), simd128f());
+
+						simd128i z = (simd128i)((simd128f(1 << DEPTH_BITS) * (simd128f(work_z[i0]) + ((w1_f * z10) + (w2_f * z20)))));
 
 						/* force the buffer to be aligned and change the load to _mm_load_si128 */
-						__m128i depth = _mm_loadu_si128((const __m128i *)&depth_buf[pixel_index_start]);
+						simd128i depth = _mm_loadu_si128((const __m128i *)&depth_buf[pixel_index_start]);
 
-						__m128i depth_mask = _mm_set_epi32(0x00ffffff, 0x00ffffff, 0x00ffffff, 0x00ffffff);
-						temp_mask = _mm_cmplt_epi32(z, _mm_and_si128(depth, depth_mask));
-						mask = _mm_and_si128(mask, temp_mask);
+						simd128i depth_mask(0x00ffffff);
+						temp_mask = (z < (depth & depth_mask));
+						mask &= temp_mask;
 
-						if (_mm_movemask_epi8(mask) != 0x0)
+						if (mask.movemask() != 0x0)
 						{
-							__m128 interp_w = _mm_add_ps(_mm_add_ps(
-								_mm_mul_ps(work_w0, w0_f),
-								_mm_mul_ps(work_w1, w1_f)),
-								_mm_mul_ps(work_w2, w2_f));
+							simd128f interp_w((work_w0 * w0_f) + (work_w1 * w1_f) + (work_w2 * w2_f));
+							simd128f u((uv0x + ((w1_f * uv10x) + (w2_f * uv20x))) / interp_w);
+							simd128f v((uv0y + ((w1_f * uv10y) + (w2_f * uv20y))) / interp_w);
 
-							__m128 u = _mm_div_ps(
-								_mm_add_ps(uv0x,
-									_mm_add_ps(_mm_mul_ps(w1_f, uv10x),
-										_mm_mul_ps(w2_f, uv20x))), interp_w);
-
-							__m128 v = _mm_div_ps(
-								_mm_add_ps(uv0y,
-									_mm_add_ps(_mm_mul_ps(w1_f, uv10y),
-										_mm_mul_ps(w2_f, uv20y))), interp_w);
-
-							__m128i texture_index = mul_epi32(_mm_cvttps_epi32(_mm_mul_ps(tex_coor_y_max, v)), _mm_set_epi32(texture_size.x, texture_size.x, texture_size.x, texture_size.x));
-							texture_index = _mm_add_epi32(texture_index, _mm_cvttps_epi32(_mm_mul_ps(tex_coor_x_max, u)));
+							simd128i texture_index((simd128i)((tex_coor_y_max * v)) * simd128i(texture_size.x));
+							texture_index += (simd128i)((tex_coor_x_max * u));
 
 							for (unsigned int pixel = 0; pixel < 4; ++pixel)
 							{
@@ -595,23 +560,20 @@ void rasterizer_rasterize(uint32_t *render_target, uint32_t *depth_buf, const st
 #else
 								assert(pixel_index_start + pixel < (unsigned)(target_size.x * target_size.y) && "rasterizer_rasterize: invalid pixel_index");
 #endif
-								assert(((uint32_t *)&texture_index)[pixel] < (unsigned)(texture_size.x * texture_size.y) && "rasterizer_rasterize: invalid texture_index");
+								assert((texture_index.get_uint_ptr())[pixel] < (unsigned)(texture_size.x * texture_size.y) && "rasterizer_rasterize: invalid texture_index");
 
 								/* There must be a better way to do this */
-								depth_buf[pixel_index_start + pixel] = ((uint32_t *)&z)[pixel];
+								depth_buf[pixel_index_start + pixel] = (z.get_uint_ptr())[pixel];
 								/* Mipmapping should help with this,
 								 * currently especially small triangles can cause cache misses
 								 * by accessing the texture in the opposite ends of the array.*/
-								render_target[pixel_index_start + pixel] = texture[((int32_t *)&texture_index)[pixel]];
+								render_target[pixel_index_start + pixel] = texture[(texture_index.get_int_ptr())[pixel]];
 							}
 						}
 					}
-					int32_t double_step = step_x_12 * 2;
-					w0 = _mm_add_epi32(w0, _mm_set_epi32(double_step, double_step, double_step, double_step));
-					double_step = step_x_20 * 2;
-					w1 = _mm_add_epi32(w1, _mm_set_epi32(double_step, double_step, double_step, double_step));
-					double_step = step_x_01 * 2;
-					w2 = _mm_add_epi32(w2, _mm_set_epi32(double_step, double_step, double_step, double_step));
+					w0 += simd128i(step_x_12 * 2);
+					w1 += simd128i(step_x_20 * 2);
+					w2 += simd128i(step_x_01 * 2);
 
 					pixel_index_start += 4;
 				}
